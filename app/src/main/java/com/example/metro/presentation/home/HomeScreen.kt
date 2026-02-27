@@ -30,6 +30,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.metro.R
+import com.example.metro.presentation.alerts.AlertsScreen
+import com.example.metro.presentation.explore.ExploreScreen
+import com.example.metro.presentation.map.MapScreen
+import com.example.metro.presentation.stations.StationsScreen
 import com.example.metro.ui.theme.*
 
 // ── Data models ───────────────────────────────────────────────────────────────
@@ -70,7 +74,7 @@ fun HomeScreen() {
         NavItem("Map",      Icons.Filled.Map,            Icons.Outlined.Map),
         NavItem("Stations", Icons.Filled.Train,          Icons.Outlined.Train),
         NavItem("Alerts",   Icons.Filled.Notifications,  Icons.Outlined.Notifications),
-        NavItem("Style",    Icons.Filled.Info,           Icons.Outlined.Info)
+        NavItem("Explore", Icons.Filled.Explore,       Icons.Outlined.Explore)
     )
 
     val savedRoutes = listOf(
@@ -88,45 +92,83 @@ fun HomeScreen() {
             MetroBottomNav(navItems, selectedNav) { selectedNav = it }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
         ) {
-            // ── Header with border image ───────────────────────────────────
-            MetroHeader()
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // ── Plan your ride card ───────────────────────────────────
-                PlanYourRideCard(
+            when (selectedNav) {
+                0 -> HomeContent(
+                    quickActions = quickActions,
+                    savedRoutes = savedRoutes,
                     fromStation = fromStation,
-                    toStation   = toStation,
+                    toStation = toStation,
                     onFromChange = { fromStation = it },
-                    onToChange   = { toStation = it },
+                    onToChange = { toStation = it },
                     onSwap = {
                         val temp = fromStation
                         fromStation = toStation
                         toStation = temp
                     }
                 )
-
-                // ── Quick Actions ─────────────────────────────────────────
-                QuickActionsRow(quickActions)
-
-                // ── Service Status ────────────────────────────────────────
-                ServiceStatusCard()
-
-                // ── Saved Routes ──────────────────────────────────────────
-                SavedRoutesSection(savedRoutes)
-
-                Spacer(Modifier.height(8.dp))
+                1 -> MapScreen()
+                2 -> StationsScreen()
+                3 -> AlertsScreen()
+                4 -> ExploreScreen()
+                else -> HomeContent(
+                    quickActions = quickActions,
+                    savedRoutes = savedRoutes,
+                    fromStation = fromStation,
+                    toStation = toStation,
+                    onFromChange = { fromStation = it },
+                    onToChange = { toStation = it },
+                    onSwap = {
+                        val temp = fromStation
+                        fromStation = toStation
+                        toStation = temp
+                    }
+                )
             }
+        }
+    }
+}
+
+// ── Home Tab Content ──────────────────────────────────────────────────────────
+
+@Composable
+fun HomeContent(
+    quickActions: List<QuickAction>,
+    savedRoutes: List<SavedRoute>,
+    fromStation: String,
+    toStation: String,
+    onFromChange: (String) -> Unit,
+    onToChange: (String) -> Unit,
+    onSwap: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        MetroHeader()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            PlanYourRideCard(
+                fromStation = fromStation,
+                toStation = toStation,
+                onFromChange = onFromChange,
+                onToChange = onToChange,
+                onSwap = onSwap
+            )
+            QuickActionsRow(quickActions)
+            ServiceStatusCard()
+            SavedRoutesSection(savedRoutes)
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -170,9 +212,8 @@ fun MetroHeader() {
                     painter = painterResource(R.drawable.mento),
                     contentDescription = "Patna Metro Logo",
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(10.dp)),
-                    contentScale = ContentScale.Crop
+                        .size(48.dp),
+                    contentScale = ContentScale.Fit
                 )
                 Spacer(Modifier.width(12.dp))
                 Column {
