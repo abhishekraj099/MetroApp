@@ -3,6 +3,7 @@ package com.example.metro.presentation.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -16,15 +17,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.metro.R
@@ -45,6 +47,13 @@ data class NavItem(
     val selectedIcon: ImageVector
 )
 
+data class SavedRoute(
+    val lineName: String,
+    val lineColor: Color,
+    val from: String,
+    val to: String
+)
+
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 @Composable
@@ -57,11 +66,16 @@ fun HomeScreen() {
     )
 
     val navItems = listOf(
-        NavItem("Home",     Icons.Filled.Home,        Icons.Outlined.Home),
-        NavItem("Map",      Icons.Filled.Map,         Icons.Outlined.Map),
-        NavItem("Stations", Icons.Filled.Train,       Icons.Outlined.Train),
-        NavItem("Alerts",   Icons.Filled.Notifications, Icons.Outlined.Notifications),
-        NavItem("Style",    Icons.Filled.Info,        Icons.Outlined.Info)
+        NavItem("Home",     Icons.Filled.Home,           Icons.Outlined.Home),
+        NavItem("Map",      Icons.Filled.Map,            Icons.Outlined.Map),
+        NavItem("Stations", Icons.Filled.Train,          Icons.Outlined.Train),
+        NavItem("Alerts",   Icons.Filled.Notifications,  Icons.Outlined.Notifications),
+        NavItem("Style",    Icons.Filled.Info,           Icons.Outlined.Info)
+    )
+
+    val savedRoutes = listOf(
+        SavedRoute("Red Line",  VermilionRed, "Patna Jn",    "Frazer Road"),
+        SavedRoute("Blue Line", IndigoBlue,   "Saguna More", "Danapur")
     )
 
     var selectedNav by remember { mutableIntStateOf(0) }
@@ -108,6 +122,9 @@ fun HomeScreen() {
                 // ── Service Status ────────────────────────────────────────
                 ServiceStatusCard()
 
+                // ── Saved Routes ──────────────────────────────────────────
+                SavedRoutesSection(savedRoutes)
+
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -118,56 +135,53 @@ fun HomeScreen() {
 
 @Composable
 fun MetroHeader() {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceWhite)
+            .statusBarsPadding()
+            .height(80.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // Spacer for status bar, then border strip
-        Spacer(Modifier.statusBarsPadding())
-
-        // Decorative border image — full width, sits at the very top
+        // Border image fills entire header as background
         Image(
             painter = painterResource(R.drawable.borders),
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            contentScale = ContentScale.FillBounds
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
 
-        // Top bar content row — sits cleanly below the border
+        // Semi-transparent overlay so text is readable
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Parchment.copy(alpha = 0.75f))
+        )
+
+        // Content row on top of border image
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Logo + Title
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
+                Image(
+                    painter = painterResource(R.drawable.mento),
+                    contentDescription = "Patna Metro Logo",
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(VermilionRed),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Train,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
                         "Patna Metro",
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextDark,
-                            fontSize = 16.sp
+                            fontSize = 20.sp
                         )
                     )
                     Text(
@@ -176,18 +190,17 @@ fun MetroHeader() {
                             color = VermilionRed,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.5.sp,
-                            fontSize = 9.sp
+                            fontSize = 10.sp
                         )
                     )
                 }
             }
 
-            // Settings icon
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(ParchmentDark)
+                    .background(ParchmentDark.copy(alpha = 0.8f))
                     .clickable { },
                 contentAlignment = Alignment.Center
             ) {
@@ -195,7 +208,7 @@ fun MetroHeader() {
                     Icons.Outlined.Settings,
                     contentDescription = "Settings",
                     tint = IndigoBlue,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -238,43 +251,98 @@ fun PlanYourRideCard(
 
             Spacer(Modifier.height(16.dp))
 
-            // Station selector
-            Box {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // From Station
-                    StationField(
-                        label = "From Station",
-                        value = fromStation,
-                        dotColor = IndigoBlue,
-                        onValueChange = onFromChange
+            // Station selector with vertical connecting line + dots
+            Row(modifier = Modifier.fillMaxWidth()) {
+                // Left column: dots + vertical dashed line
+                Column(
+                    modifier = Modifier
+                        .padding(top = 18.dp)
+                        .width(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // From dot (blue)
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Color.Transparent)
+                            .drawBehind {
+                                drawCircle(
+                                    color = IndigoBlue,
+                                    radius = size.minDimension / 2,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            }
                     )
-                    // To Station
-                    StationField(
-                        label = "To Station",
-                        value = toStation,
-                        dotColor = VermilionRed,
-                        placeholder = "Select destination",
-                        onValueChange = onToChange
+                    // Dashed vertical line
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(52.dp)
+                            .drawBehind {
+                                drawLine(
+                                    color = DividerColor,
+                                    start = Offset(size.width / 2, 0f),
+                                    end = Offset(size.width / 2, size.height),
+                                    strokeWidth = 2.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(6f, 6f), 0f
+                                    )
+                                )
+                            }
+                    )
+                    // To dot (red)
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Color.Transparent)
+                            .drawBehind {
+                                drawCircle(
+                                    color = VermilionRed,
+                                    radius = size.minDimension / 2,
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            }
                     )
                 }
 
-                // Swap button
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(end = 8.dp)
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(ParchmentDark)
-                        .clickable { onSwap() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.SwapVert,
-                        contentDescription = "Swap",
-                        tint = IndigoBlue,
-                        modifier = Modifier.size(18.dp)
-                    )
+                Spacer(Modifier.width(8.dp))
+
+                // Station fields + swap button
+                Box(modifier = Modifier.weight(1f)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StationField(
+                            label = "From Station",
+                            value = fromStation,
+                            onValueChange = onFromChange
+                        )
+                        StationField(
+                            label = "To Station",
+                            value = toStation,
+                            placeholder = "Select destination",
+                            onValueChange = onToChange
+                        )
+                    }
+
+                    // Swap button
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 8.dp)
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(ParchmentDark)
+                            .clickable { onSwap() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.SwapVert,
+                            contentDescription = "Swap",
+                            tint = IndigoBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -306,7 +374,6 @@ fun PlanYourRideCard(
 fun StationField(
     label: String,
     value: String,
-    dotColor: Color,
     placeholder: String = "",
     onValueChange: (String) -> Unit
 ) {
@@ -316,33 +383,22 @@ fun StationField(
         color = ParchmentDark,
         tonalElevation = 0.dp
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
-            // Dot indicator
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(dotColor)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = TextLight, fontSize = 11.sp
+                )
             )
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = TextLight, fontSize = 11.sp
-                    )
+            Text(
+                value.ifEmpty { placeholder },
+                style = MaterialTheme.typography.titleSmall.copy(
+                    color = if (value.isEmpty()) TextLight else TextDark,
+                    fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.SemiBold
                 )
-                Text(
-                    value.ifEmpty { placeholder },
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        color = if (value.isEmpty()) TextLight else TextDark,
-                        fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.SemiBold
-                    )
-                )
-            }
+            )
         }
     }
 }
@@ -368,10 +424,11 @@ fun QuickActionItem(action: QuickAction, modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        // Circular icon background (matching the images)
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(CircleShape)
                 .background(action.bgColor),
             contentAlignment = Alignment.Center
         ) {
@@ -406,7 +463,6 @@ fun ServiceStatusCard() {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Green lightning icon
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -432,6 +488,91 @@ fun ServiceStatusCard() {
                 Text(
                     "All lines running smoothly today.",
                     style = MaterialTheme.typography.bodySmall.copy(color = TextMedium)
+                )
+            }
+        }
+    }
+}
+
+// ── Saved Routes Section ──────────────────────────────────────────────────────
+
+@Composable
+fun SavedRoutesSection(routes: List<SavedRoute>) {
+    Column {
+        Text(
+            "Saved Routes",
+            style = MaterialTheme.typography.headlineSmall.copy(
+                color = TextDark,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            routes.forEach { route ->
+                SavedRouteCard(route)
+            }
+        }
+    }
+}
+
+@Composable
+fun SavedRouteCard(route: SavedRoute) {
+    Card(
+        modifier = Modifier.width(200.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Line name with colored dot
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(route.lineColor)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    route.lineName,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = TextMedium
+                    )
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            // From ⇄ To
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    route.from,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = TextDark,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "⇄",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = TextLight
+                    )
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    route.to,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = TextDark,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
