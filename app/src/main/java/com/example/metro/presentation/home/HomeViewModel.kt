@@ -1,6 +1,7 @@
 package com.example.metro.presentation.home
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -19,15 +20,24 @@ import kotlinx.coroutines.launch
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
 
+/**
+ * Which station field the picker is opened for.
+ */
+enum class StationPickerTarget { FROM, TO }
+
 data class HomeUiState(
     // Route planner
     val fromStation: String = "",
     val toStation: String = "",
     val stationNames: List<String> = emptyList(),
-    val fromSuggestions: List<String> = emptyList(),
-    val toSuggestions: List<String> = emptyList(),
-    val showFromSuggestions: Boolean = false,
-    val showToSuggestions: Boolean = false,
+
+    // Station picker bottom sheet
+    val showStationPicker: Boolean = false,
+    val pickerTarget: StationPickerTarget = StationPickerTarget.FROM,
+    val pickerQuery: String = "",
+    val allStations: List<com.example.metro.data.model.Station> = emptyList(),
+    val corridor1Stations: List<com.example.metro.data.model.Station> = emptyList(),
+    val corridor2Stations: List<com.example.metro.data.model.Station> = emptyList(),
 
     // Route result
     val routeResult: RouteResult? = null,
@@ -67,7 +77,17 @@ class HomeViewModel(
 
     private fun loadStationNames() {
         val names = homeRepository.getStationNames()
-        _uiState.update { it.copy(stationNames = names) }
+        val stations = homeRepository.getAllStations()
+        val c1 = homeRepository.getCorridor1Stations()
+        val c2 = homeRepository.getCorridor2Stations()
+        _uiState.update {
+            it.copy(
+                stationNames = names,
+                allStations = stations,
+                corridor1Stations = c1,
+                corridor2Stations = c2
+            )
+        }
     }
 
     private fun loadServiceStatus() {
@@ -91,20 +111,55 @@ class HomeViewModel(
         }
     }
 
-    // ── From station input ──────────────────────────────────────────────────
+    // ── Station Picker ────────────────────────────────────────────────────
+
+    fun openStationPicker(target: StationPickerTarget) {
+        Log.d("HomeViewModel", "openStationPicker called: target=$target, current stations: c1=${_uiState.value.corridor1Stations.size}, c2=${_uiState.value.corridor2Stations.size}")
+        _uiState.update {
+            it.copy(
+                showStationPicker = true,
+                pickerTarget = target,
+                pickerQuery = ""
+            )
+        }
+        Log.d("HomeViewModel", "showStationPicker is now: ${_uiState.value.showStationPicker}")
+    }
+
+    fun onPickerQueryChange(query: String) {
+        _uiState.update { it.copy(pickerQuery = query) }
+    }
+
+    fun onStationSelected(name: String) {
+        _uiState.update {
+            when (it.pickerTarget) {
+                StationPickerTarget.FROM -> it.copy(
+                    fromStation = name,
+                    showStationPicker = false,
+                    pickerQuery = "",
+                    showRouteResult = false,
+                    routeError = ""
+                )
+                StationPickerTarget.TO -> it.copy(
+                    toStation = name,
+                    showStationPicker = false,
+                    pickerQuery = "",
+                    showRouteResult = false,
+                    routeError = ""
+                )
+            }
+        }
+    }
+
+    fun dismissStationPicker() {
+        _uiState.update { it.copy(showStationPicker = false, pickerQuery = "") }
+    }
+
+    // ── From station input (kept for compatibility) ─────────────────────────
 
     fun onFromStationChange(value: String) {
-        val suggestions = if (value.isNotBlank()) {
-            _uiState.value.stationNames.filter {
-                it.lowercase().contains(value.lowercase())
-            }
-        } else emptyList()
-
         _uiState.update {
             it.copy(
                 fromStation = value,
-                fromSuggestions = suggestions,
-                showFromSuggestions = suggestions.isNotEmpty() && value.isNotBlank(),
                 showRouteResult = false,
                 routeError = ""
             )
@@ -113,28 +168,16 @@ class HomeViewModel(
 
     fun onFromStationSelected(name: String) {
         _uiState.update {
-            it.copy(
-                fromStation = name,
-                showFromSuggestions = false,
-                fromSuggestions = emptyList()
-            )
+            it.copy(fromStation = name)
         }
     }
 
-    // ── To station input ────────────────────────────────────────────────────
+    // ── To station input (kept for compatibility) ───────────────────────────
 
     fun onToStationChange(value: String) {
-        val suggestions = if (value.isNotBlank()) {
-            _uiState.value.stationNames.filter {
-                it.lowercase().contains(value.lowercase())
-            }
-        } else emptyList()
-
         _uiState.update {
             it.copy(
                 toStation = value,
-                toSuggestions = suggestions,
-                showToSuggestions = suggestions.isNotEmpty() && value.isNotBlank(),
                 showRouteResult = false,
                 routeError = ""
             )
@@ -143,11 +186,7 @@ class HomeViewModel(
 
     fun onToStationSelected(name: String) {
         _uiState.update {
-            it.copy(
-                toStation = name,
-                showToSuggestions = false,
-                toSuggestions = emptyList()
-            )
+            it.copy(toStation = name)
         }
     }
 

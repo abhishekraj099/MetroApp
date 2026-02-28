@@ -4,6 +4,7 @@ import com.example.metro.data.local.SavedRoutesDataStore
 import com.example.metro.data.model.RouteResult
 import com.example.metro.data.model.SavedRoute
 import com.example.metro.data.model.ServiceLevel
+import com.example.metro.data.model.Station
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
@@ -18,6 +19,14 @@ class HomeRepository(
     // ── Station Data ────────────────────────────────────────────────────────
 
     fun getStationNames(): List<String> = metroRepository.getStationNames()
+
+    fun getAllStations(): List<Station> = metroRepository.getAllStations()
+
+    fun getStationsByLine(line: String): List<Station> = metroRepository.getStationsByLine(line)
+
+    fun getCorridor1Stations(): List<Station> = metroRepository.getCorridor1().stations
+
+    fun getCorridor2Stations(): List<Station> = metroRepository.getCorridor2().stations
 
     // ── Route Finding ───────────────────────────────────────────────────────
 

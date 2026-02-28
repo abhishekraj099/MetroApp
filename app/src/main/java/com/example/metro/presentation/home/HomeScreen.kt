@@ -9,15 +9,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Accessible
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +78,7 @@ fun HomeScreen() {
         QuickAction("Fare",     Icons.Outlined.ConfirmationNumber, Color(0xFFFFF3E0), Color(0xFFE65142)),
         QuickAction("Timings",  Icons.Outlined.Schedule,           Color(0xFFE8EAF6), IndigoBlue),
         QuickAction("Nearest",  Icons.Outlined.NearMe,             Color(0xFFE8F5E9), Color(0xFF2E7D32)),
-        QuickAction("Access",   Icons.Outlined.Accessible,         Color(0xFFEDE7F6), Color(0xFF6A1B9A))
+        QuickAction("Access",   Icons.AutoMirrored.Outlined.Accessible,         Color(0xFFEDE7F6), Color(0xFF6A1B9A))
     )
 
     val navItems = listOf(
@@ -103,16 +106,17 @@ fun HomeScreen() {
                 0 -> HomeContent(
                     uiState = uiState,
                     quickActions = quickActions,
-                    onFromChange = viewModel::onFromStationChange,
-                    onFromSelected = viewModel::onFromStationSelected,
-                    onToChange = viewModel::onToStationChange,
-                    onToSelected = viewModel::onToStationSelected,
+                    onFromFieldClick = { viewModel.openStationPicker(StationPickerTarget.FROM) },
+                    onToFieldClick = { viewModel.openStationPicker(StationPickerTarget.TO) },
                     onSwap = viewModel::onSwapStations,
                     onFindRoute = viewModel::onFindRoute,
                     onSaveRoute = viewModel::onSaveCurrentRoute,
                     onDismissRoute = viewModel::dismissRouteResult,
                     onLoadSavedRoute = viewModel::onLoadSavedRoute,
-                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute
+                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute,
+                    onPickerQueryChange = viewModel::onPickerQueryChange,
+                    onStationSelected = viewModel::onStationSelected,
+                    onDismissPicker = viewModel::dismissStationPicker
                 )
                 1 -> MapScreen()
                 2 -> StationsScreen()
@@ -121,16 +125,17 @@ fun HomeScreen() {
                 else -> HomeContent(
                     uiState = uiState,
                     quickActions = quickActions,
-                    onFromChange = viewModel::onFromStationChange,
-                    onFromSelected = viewModel::onFromStationSelected,
-                    onToChange = viewModel::onToStationChange,
-                    onToSelected = viewModel::onToStationSelected,
+                    onFromFieldClick = { viewModel.openStationPicker(StationPickerTarget.FROM) },
+                    onToFieldClick = { viewModel.openStationPicker(StationPickerTarget.TO) },
                     onSwap = viewModel::onSwapStations,
                     onFindRoute = viewModel::onFindRoute,
                     onSaveRoute = viewModel::onSaveCurrentRoute,
                     onDismissRoute = viewModel::dismissRouteResult,
                     onLoadSavedRoute = viewModel::onLoadSavedRoute,
-                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute
+                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute,
+                    onPickerQueryChange = viewModel::onPickerQueryChange,
+                    onStationSelected = viewModel::onStationSelected,
+                    onDismissPicker = viewModel::dismissStationPicker
                 )
             }
         }
@@ -139,76 +144,88 @@ fun HomeScreen() {
 
 // ── Home Tab Content ──────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(
     uiState: HomeUiState,
     quickActions: List<QuickAction>,
-    onFromChange: (String) -> Unit,
-    onFromSelected: (String) -> Unit,
-    onToChange: (String) -> Unit,
-    onToSelected: (String) -> Unit,
+    onFromFieldClick: () -> Unit,
+    onToFieldClick: () -> Unit,
     onSwap: () -> Unit,
     onFindRoute: () -> Unit,
     onSaveRoute: () -> Unit,
     onDismissRoute: () -> Unit,
     onLoadSavedRoute: (SavedRoute) -> Unit,
-    onRemoveSavedRoute: (String) -> Unit
+    onRemoveSavedRoute: (String) -> Unit,
+    onPickerQueryChange: (String) -> Unit,
+    onStationSelected: (String) -> Unit,
+    onDismissPicker: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
-        MetroHeader()
-
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
         ) {
-            PlanYourRideCard(
-                fromStation = uiState.fromStation,
-                toStation = uiState.toStation,
-                fromSuggestions = uiState.fromSuggestions,
-                toSuggestions = uiState.toSuggestions,
-                showFromSuggestions = uiState.showFromSuggestions,
-                showToSuggestions = uiState.showToSuggestions,
-                onFromChange = onFromChange,
-                onFromSelected = onFromSelected,
-                onToChange = onToChange,
-                onToSelected = onToSelected,
-                onSwap = onSwap,
-                onFindRoute = onFindRoute,
-                routeError = uiState.routeError
-            )
+            MetroHeader()
 
-            // Route Result Card
-            AnimatedVisibility(
-                visible = uiState.showRouteResult && uiState.routeResult != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                uiState.routeResult?.let { result ->
-                    RouteResultCard(
-                        result = result,
-                        onSave = onSaveRoute,
-                        onDismiss = onDismissRoute
-                    )
-                }
-            }
+                PlanYourRideCard(
+                    fromStation = uiState.fromStation,
+                    toStation = uiState.toStation,
+                    onFromClick = onFromFieldClick,
+                    onToClick = onToFieldClick,
+                    onSwap = onSwap,
+                    onFindRoute = onFindRoute,
+                    routeError = uiState.routeError
+                )
 
-            QuickActionsRow(quickActions)
-            ServiceStatusCard(
-                serviceLevel = uiState.serviceLevel,
-                message = uiState.serviceMessage
+                // Route Result Card
+                AnimatedVisibility(
+                    visible = uiState.showRouteResult && uiState.routeResult != null,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    uiState.routeResult?.let { result ->
+                        RouteResultCard(
+                            result = result,
+                            onSave = onSaveRoute,
+                            onDismiss = onDismissRoute
+                        )
+                    }
+                }
+
+                QuickActionsRow(quickActions)
+                ServiceStatusCard(
+                    serviceLevel = uiState.serviceLevel,
+                    message = uiState.serviceMessage
+                )
+                SavedRoutesSection(
+                    routes = uiState.savedRoutes,
+                    onRouteClick = onLoadSavedRoute,
+                    onRouteRemove = onRemoveSavedRoute
+                )
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+
+        // Station picker bottom sheet — rendered outside the scrollable Column
+        if (uiState.showStationPicker) {
+            StationPickerBottomSheet(
+                title = if (uiState.pickerTarget == StationPickerTarget.FROM) "Select Origin" else "Select Destination",
+                query = uiState.pickerQuery,
+                allStations = uiState.allStations,
+                corridor1Stations = uiState.corridor1Stations,
+                corridor2Stations = uiState.corridor2Stations,
+                onQueryChange = onPickerQueryChange,
+                onStationSelected = onStationSelected,
+                onDismiss = onDismissPicker
             )
-            SavedRoutesSection(
-                routes = uiState.savedRoutes,
-                onRouteClick = onLoadSavedRoute,
-                onRouteRemove = onRemoveSavedRoute
-            )
-            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -302,14 +319,8 @@ fun MetroHeader() {
 fun PlanYourRideCard(
     fromStation: String,
     toStation: String,
-    fromSuggestions: List<String>,
-    toSuggestions: List<String>,
-    showFromSuggestions: Boolean,
-    showToSuggestions: Boolean,
-    onFromChange: (String) -> Unit,
-    onFromSelected: (String) -> Unit,
-    onToChange: (String) -> Unit,
-    onToSelected: (String) -> Unit,
+    onFromClick: () -> Unit,
+    onToClick: () -> Unit,
     onSwap: () -> Unit,
     onFindRoute: () -> Unit,
     routeError: String
@@ -321,6 +332,7 @@ fun PlanYourRideCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+
             // Title
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -340,34 +352,36 @@ fun PlanYourRideCard(
 
             Spacer(Modifier.height(16.dp))
 
-            // Station selector with vertical connecting line + dots
-            Row(modifier = Modifier.fillMaxWidth()) {
-                // Left column: dots + vertical dashed line
+            // Station row: [dots column] [fields column] [swap button]
+            // NO overlapping boxes — each element is a sibling in the Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // ── Left dots + dashed line column ──
                 Column(
                     modifier = Modifier
-                        .padding(top = 18.dp)
+                        .padding(top = 4.dp, bottom = 4.dp)
                         .width(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // From dot (blue)
                     Box(
                         modifier = Modifier
                             .size(12.dp)
-                            .clip(CircleShape)
-                            .background(Color.Transparent)
                             .drawBehind {
                                 drawCircle(
                                     color = IndigoBlue,
                                     radius = size.minDimension / 2,
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = 2.dp.toPx()
+                                    )
                                 )
                             }
                     )
-                    // Dashed vertical line
                     Box(
                         modifier = Modifier
                             .width(2.dp)
-                            .height(52.dp)
+                            .height(56.dp)
                             .drawBehind {
                                 drawLine(
                                     color = DividerColor,
@@ -380,65 +394,59 @@ fun PlanYourRideCard(
                                 )
                             }
                     )
-                    // To dot (red)
                     Box(
                         modifier = Modifier
                             .size(12.dp)
-                            .clip(CircleShape)
-                            .background(Color.Transparent)
                             .drawBehind {
                                 drawCircle(
                                     color = VermilionRed,
                                     radius = size.minDimension / 2,
-                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                        width = 2.dp.toPx()
+                                    )
                                 )
                             }
                     )
                 }
 
+                Spacer(Modifier.width(10.dp))
+
+                // ── Station fields column (takes all remaining space) ──
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StationClickableField(
+                        label = "From Station",
+                        value = fromStation,
+                        placeholder = "Select origin",
+                        onClick = onFromClick
+                    )
+                    StationClickableField(
+                        label = "To Station",
+                        value = toStation,
+                        placeholder = "Select destination",
+                        onClick = onToClick
+                    )
+                }
+
                 Spacer(Modifier.width(8.dp))
 
-                // Station fields + swap button
-                Box(modifier = Modifier.weight(1f)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StationFieldWithSuggestions(
-                            label = "From Station",
-                            value = fromStation,
-                            placeholder = "Select origin",
-                            suggestions = fromSuggestions,
-                            showSuggestions = showFromSuggestions,
-                            onValueChange = onFromChange,
-                            onSuggestionSelected = onFromSelected
-                        )
-                        StationFieldWithSuggestions(
-                            label = "To Station",
-                            value = toStation,
-                            placeholder = "Select destination",
-                            suggestions = toSuggestions,
-                            showSuggestions = showToSuggestions,
-                            onValueChange = onToChange,
-                            onSuggestionSelected = onToSelected
-                        )
-                    }
-
-                    // Swap button
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 8.dp)
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(ParchmentDark)
-                            .clickable { onSwap() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.SwapVert,
-                            contentDescription = "Swap",
-                            tint = IndigoBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                // ── Swap button (sibling, NOT overlapping) ──
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(ParchmentDark)
+                        .clickable { onSwap() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.SwapVert,
+                        contentDescription = "Swap",
+                        tint = IndigoBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -478,80 +486,410 @@ fun PlanYourRideCard(
     }
 }
 
-// ── Station Field with Autocomplete Suggestions ─────────────────────────────
+// ── Clickable Station Field ──────────────────────────────────────────────────
 
 @Composable
-fun StationFieldWithSuggestions(
+fun StationClickableField(
     label: String,
     value: String,
     placeholder: String = "",
-    suggestions: List<String>,
-    showSuggestions: Boolean,
-    onValueChange: (String) -> Unit,
-    onSuggestionSelected: (String) -> Unit
+    onClick: () -> Unit
 ) {
-    Column {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            color = ParchmentDark
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = ParchmentDark
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    label,
+                    text = label,
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = TextLight, fontSize = 11.sp
                     )
                 )
                 Spacer(Modifier.height(2.dp))
-                // Editable text field
-                androidx.compose.foundation.text.BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    textStyle = MaterialTheme.typography.titleSmall.copy(
-                        color = TextDark,
-                        fontWeight = FontWeight.SemiBold
+                Text(
+                    text = value.ifEmpty { placeholder },
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        color = if (value.isEmpty()) TextLight else TextDark,
+                        fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.SemiBold
                     ),
-                    singleLine = true,
-                    decorationBox = { innerTextField ->
-                        Box {
-                            if (value.isEmpty()) {
-                                Text(
-                                    placeholder,
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        color = TextLight,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                )
-                            }
-                            innerTextField()
-                        }
-                    }
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = "Select",
+                tint = TextLight,
+                modifier = Modifier.size(20.dp)
+            )
         }
+    }
+}
 
-        // Dropdown suggestions
-        AnimatedVisibility(
-            visible = showSuggestions,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+// ── Station Picker Bottom Sheet ─────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun StationPickerBottomSheet(
+    title: String,
+    query: String,
+    allStations: List<com.example.metro.data.model.Station>,
+    corridor1Stations: List<com.example.metro.data.model.Station>,
+    corridor2Stations: List<com.example.metro.data.model.Station>,
+    onQueryChange: (String) -> Unit,
+    onStationSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    // Filter corridor stations based on search query
+    val filteredRed = remember(query, corridor1Stations) {
+        val q = query.lowercase().trim()
+        if (q.isBlank()) corridor1Stations
+        else corridor1Stations.filter {
+            it.name.lowercase().contains(q) || it.nameHindi.contains(q)
+        }
+    }
+    val filteredBlue = remember(query, corridor2Stations) {
+        val q = query.lowercase().trim()
+        if (q.isBlank()) corridor2Stations
+        else corridor2Stations.filter {
+            it.name.lowercase().contains(q) || it.nameHindi.contains(q)
+        }
+    }
+    val totalCount = filteredRed.size + filteredBlue.size
+
+    // Back button closes the picker
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
+
+    // Full-screen overlay
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Parchment)
+            .systemBarsPadding()
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top bar with close button and title
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    suggestions.take(5).forEach { name ->
-                        Text(
-                            name,
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Close",
+                        tint = TextDark
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        color = TextDark,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+
+            // Search bar
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = {
+                    Text("Search station...", color = TextLight)
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = TextLight
+                    )
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                Icons.Filled.Clear,
+                                contentDescription = "Clear",
+                                tint = TextLight
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(14.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextDark,
+                    unfocusedTextColor = TextDark,
+                    focusedContainerColor = SurfaceWhite,
+                    unfocusedContainerColor = SurfaceWhite,
+                    focusedBorderColor = IndigoBlue,
+                    unfocusedBorderColor = DividerColor,
+                    cursorColor = IndigoBlue
+                )
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Station count
+            Text(
+                "$totalCount stations",
+                style = MaterialTheme.typography.bodySmall.copy(color = TextLight),
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Scrollable station list
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                // Red Line — Corridor 1
+                if (filteredRed.isNotEmpty()) {
+                    item {
+                        StationLineSectionHeader(
+                            lineName = "Red Line — Corridor 1",
+                            lineColor = VermilionRed,
+                            stationCount = filteredRed.size
+                        )
+                    }
+                    items(filteredRed.size) { index ->
+                        val station = filteredRed[index]
+                        StationPickerItem(
+                            station = station,
+                            lineColor = VermilionRed,
+                            isFirst = index == 0,
+                            isLast = index == filteredRed.lastIndex,
+                            onClick = { onStationSelected(station.name) }
+                        )
+                    }
+                    item { Spacer(Modifier.height(12.dp)) }
+                }
+
+                // Blue Line — Corridor 2
+                if (filteredBlue.isNotEmpty()) {
+                    item {
+                        StationLineSectionHeader(
+                            lineName = "Blue Line — Corridor 2",
+                            lineColor = IndigoBlue,
+                            stationCount = filteredBlue.size
+                        )
+                    }
+                    items(filteredBlue.size) { index ->
+                        val station = filteredBlue[index]
+                        StationPickerItem(
+                            station = station,
+                            lineColor = IndigoBlue,
+                            isFirst = index == 0,
+                            isLast = index == filteredBlue.lastIndex,
+                            onClick = { onStationSelected(station.name) }
+                        )
+                    }
+                }
+
+                // Empty state
+                if (totalCount == 0) {
+                    item {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSuggestionSelected(name) }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            style = MaterialTheme.typography.bodyMedium.copy(color = TextDark)
+                                .padding(vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Outlined.SearchOff,
+                                contentDescription = null,
+                                tint = TextLight,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "No stations found",
+                                style = MaterialTheme.typography.bodyMedium.copy(color = TextLight)
+                            )
+                            Text(
+                                "Try a different search term",
+                                style = MaterialTheme.typography.bodySmall.copy(color = TextLight)
+                            )
+                        }
+                    }
+                }
+
+                item { Spacer(Modifier.height(24.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+fun StationLineSectionHeader(
+    lineName: String,
+    lineColor: Color,
+    stationCount: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(lineColor)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            lineName,
+            style = MaterialTheme.typography.labelLarge.copy(
+                color = lineColor,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            "$stationCount stations",
+            style = MaterialTheme.typography.labelSmall.copy(color = TextLight)
+        )
+    }
+}
+
+@Composable
+fun StationPickerItem(
+    station: com.example.metro.data.model.Station,
+    lineColor: Color,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Vertical line + station dot
+            Box(
+                modifier = Modifier
+                    .width(24.dp)
+                    .height(52.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Vertical connecting line (top half)
+                if (!isFirst) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .width(3.dp)
+                            .fillMaxHeight(0.5f)
+                            .background(lineColor.copy(alpha = 0.5f))
+                    )
+                }
+                // Vertical connecting line (bottom half)
+                if (!isLast) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .width(3.dp)
+                            .fillMaxHeight(0.5f)
+                            .background(lineColor.copy(alpha = 0.5f))
+                    )
+                }
+                // Station dot — FILLED with line color
+                Box(
+                    modifier = Modifier
+                        .size(if (station.isInterchange) 16.dp else 12.dp)
+                        .clip(CircleShape)
+                        .background(lineColor)
+                        .then(
+                            if (station.isInterchange) Modifier.drawBehind {
+                                // Extra ring for interchange
+                                drawCircle(
+                                    color = lineColor,
+                                    radius = size.minDimension / 2 + 3.dp.toPx(),
+                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                                )
+                            } else Modifier
+                        )
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            // Station info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    station.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        color = TextDark,
+                        fontWeight = if (station.isInterchange) FontWeight.Bold else FontWeight.Medium
+                    )
+                )
+                if (station.nameHindi.isNotEmpty()) {
+                    Text(
+                        station.nameHindi,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextLight, fontSize = 11.sp
+                        )
+                    )
+                }
+            }
+
+            // Interchange badge
+            if (station.isInterchange) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Turmeric.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        "Interchange",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = Turmeric,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            // Facility icons
+            if (station.facilities.isNotEmpty()) {
+                Spacer(Modifier.width(4.dp))
+                Row {
+                    if ("Parking" in station.facilities) {
+                        Icon(
+                            Icons.Outlined.LocalParking,
+                            contentDescription = "Parking",
+                            tint = TextLight,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    if ("Lift" in station.facilities) {
+                        Icon(
+                            Icons.Outlined.Elevator,
+                            contentDescription = "Lift",
+                            tint = TextLight,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
