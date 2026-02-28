@@ -53,31 +53,38 @@ fun SplashScreen(
 ) {
     // ── Animations ──────────────────────────────────────────────────────────
     val borderAlpha = remember { Animatable(0f) }
-    val logoScale = remember { Animatable(0.3f) }
+    val borderOffset = remember { Animatable(-60f) }
+    val logoScale = remember { Animatable(0f) }
     val logoAlpha = remember { Animatable(0f) }
     val titleAlpha = remember { Animatable(0f) }
-    val titleOffset = remember { Animatable(30f) }
+    val titleOffset = remember { Animatable(40f) }
     val personScale = remember { Animatable(0f) }
     val personAlpha = remember { Animatable(0f) }
+    val personOffset = remember { Animatable(80f) }
     val bubbleAlpha = remember { Animatable(0f) }
-    val bubbleScale = remember { Animatable(0.5f) }
+    val bubbleScale = remember { Animatable(0.3f) }
 
     LaunchedEffect(Unit) {
-        // 1. Border fades in
-        borderAlpha.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
-
-        // 2. Logo bounces in (alpha + scale in parallel)
-        val logoJob = launch { logoAlpha.animateTo(1f, tween(300)) }
+        // 1. Logo bounces in first (center of screen grabs attention)
+        val logoAlphaJob = launch { logoAlpha.animateTo(1f, tween(400)) }
         val logoScaleJob = launch {
             logoScale.animateTo(
                 1f,
                 spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
             )
         }
-        logoJob.join()
+        logoAlphaJob.join()
         logoScaleJob.join()
 
-        // 3. Title slides up (alpha + offset in parallel)
+        delay(150)
+
+        // 2. Border slides down from top
+        val borderAlphaJob = launch { borderAlpha.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
+        val borderOffsetJob = launch { borderOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing)) }
+        borderAlphaJob.join()
+        borderOffsetJob.join()
+
+        // 3. Title + subtitle slide up into view
         val titleAlphaJob = launch { titleAlpha.animateTo(1f, tween(400)) }
         val titleOffsetJob = launch {
             titleOffset.animateTo(0f, tween(400, easing = FastOutSlowInEasing))
@@ -85,16 +92,22 @@ fun SplashScreen(
         titleAlphaJob.join()
         titleOffsetJob.join()
 
-        // 4. Person slides in (alpha + scale in parallel)
-        val personAlphaJob = launch { personAlpha.animateTo(1f, tween(400)) }
+        delay(100)
+
+        // 4. Person card slides up and scales in
+        val personAlphaJob = launch { personAlpha.animateTo(1f, tween(500)) }
         val personScaleJob = launch {
             personScale.animateTo(
                 1f,
                 spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
             )
         }
+        val personOffsetJob = launch {
+            personOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing))
+        }
         personAlphaJob.join()
         personScaleJob.join()
+        personOffsetJob.join()
 
         // 5. Speech bubble pops in
         delay(200)
@@ -109,7 +122,7 @@ fun SplashScreen(
         bubbleScaleJob.join()
 
         // Hold for a moment then navigate
-        delay(1200)
+        delay(1000)
         onSplashFinished()
     }
 
@@ -128,27 +141,31 @@ fun SplashScreen(
                 )
             )
     ) {
-        // ── Border image at top ─────────────────────────────────────────────
-        Image(
-            painter = painterResource(R.drawable.newborder),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .alpha(borderAlpha.value),
-            contentScale = ContentScale.FillWidth
-        )
-
-        // ── Center content ──────────────────────────────────────────────────
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ── App Logo ────────────────────────────────────────────────────
+            // ── Border image at top ─────────────────────────────────────────
             Box(
                 modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = borderOffset.value.dp)
+                    .alpha(borderAlpha.value * 0.45f),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.newborder),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.FillWidth
+                )
+            }
+
+            // ── Logo overlapping border bottom ──────────────────────────────
+            Box(
+                modifier = Modifier
+                    .offset(y = (-40).dp)
                     .size(120.dp)
                     .scale(logoScale.value)
                     .alpha(logoAlpha.value)
@@ -159,7 +176,7 @@ fun SplashScreen(
                         spotColor = IndigoBlue.copy(alpha = 0.15f)
                     )
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color.White.copy(alpha = 0.9f)),
+                    .background(Color.White.copy(alpha = 0.95f)),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -170,9 +187,7 @@ fun SplashScreen(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            // ── "Patna Metro" text below logo ─────────────────────────────────────
+            // ── "Patna Metro" small label below logo ────────────────────────
             Text(
                 text = "Patna Metro",
                 style = MaterialTheme.typography.labelMedium.copy(
@@ -182,13 +197,14 @@ fun SplashScreen(
                     fontSize = 13.sp
                 ),
                 modifier = Modifier
+                    .offset(y = (-28).dp)
                     .alpha(logoAlpha.value)
                     .scale(logoScale.value)
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // ── App name ────────────────────────────────────────────────────
+            // ── App name large ──────────────────────────────────────────────
             Text(
                 text = "Patna Metro",
                 style = MaterialTheme.typography.displayMedium.copy(
@@ -218,20 +234,47 @@ fun SplashScreen(
                     .offset(y = titleOffset.value.dp)
             )
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
 
-            // ── Person with speech bubble ───────────────────────────────────
+            // ── Person with speech bubble inside a card ─────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp),
-                contentAlignment = Alignment.BottomCenter
+                    .padding(horizontal = 32.dp)
+                    .offset(y = personOffset.value.dp)
+                    .scale(personScale.value)
+                    .alpha(personAlpha.value),
+                contentAlignment = Alignment.TopCenter
             ) {
-                // Speech bubble - positioned top-right of person
+                // Person card container
+                Box(
+                    modifier = Modifier
+                        .padding(top = 28.dp)
+                        .fillMaxWidth(0.75f)
+                        .shadow(
+                            elevation = 8.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.06f)
+                        )
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xFFFDF5EC)),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.img),
+                        contentDescription = "Welcome Character",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
+
+                // Speech bubble - positioned top-right, overlapping the card
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = (-20).dp, y = 10.dp)
+                        .offset(x = 0.dp, y = 0.dp)
                         .scale(bubbleScale.value)
                         .alpha(bubbleAlpha.value)
                         .shadow(
@@ -240,7 +283,7 @@ fun SplashScreen(
                             ambientColor = Color.Black.copy(alpha = 0.08f)
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color.White.copy(alpha = 0.92f))
+                        .background(Color.White.copy(alpha = 0.95f))
                         .padding(horizontal = 20.dp, vertical = 12.dp)
                 ) {
                     Text(
@@ -253,19 +296,9 @@ fun SplashScreen(
                         )
                     )
                 }
-
-                // Namaste person image
-                Image(
-                    painter = painterResource(R.drawable.namastepersono),
-                    contentDescription = "Welcome Character",
-                    modifier = Modifier
-                        .height(220.dp)
-                        .scale(personScale.value)
-                        .alpha(personAlpha.value)
-                        .align(Alignment.BottomCenter),
-                    contentScale = ContentScale.Fit
-                )
             }
+
+            Spacer(Modifier.height(32.dp))
         }
     }
 }

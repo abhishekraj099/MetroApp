@@ -149,7 +149,7 @@ fun LoginScreen(navController: NavController) {
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .alpha(headerAlpha.value),
+                    .alpha(headerAlpha.value * 0.45f),
                 contentScale = ContentScale.FillWidth
             )
 
@@ -190,7 +190,9 @@ fun LoginScreen(navController: NavController) {
                         color = TextDark,
                         fontSize = 28.sp
                     ),
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
+                        .fillMaxWidth()
                         .alpha(logoAlpha.value)
                         .scale(logoScale.value)
                 )
@@ -477,7 +479,7 @@ fun LoginScreen(navController: NavController) {
 
                 // ── Person illustration ─────────────────────────────────
                 Image(
-                    painter = painterResource(R.drawable.namastepersono),
+                    painter = painterResource(R.drawable.img),
                     contentDescription = "Welcome",
                     modifier = Modifier
                         .height(160.dp)

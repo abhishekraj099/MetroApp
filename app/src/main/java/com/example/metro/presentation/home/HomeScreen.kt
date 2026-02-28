@@ -289,7 +289,7 @@ fun MetroHeader(onSettingsClick: () -> Unit = {}) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Parchment.copy(alpha = 0.75f))
+                .background(Parchment.copy(alpha = 0.85f))
         )
 
         // Content row on top of border image
