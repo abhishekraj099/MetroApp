@@ -23,7 +23,9 @@ import kotlinx.coroutines.launch
 /**
  * Which station field the picker is opened for.
  */
-enum class StationPickerTarget { FROM, TO }
+enum class StationPickerTarget { FROM, TO, FARE_FROM, FARE_TO }
+
+enum class QuickActionType { FARE, TIMINGS, NEAREST, ACCESSIBILITY }
 
 data class HomeUiState(
     // Route planner
@@ -52,7 +54,16 @@ data class HomeUiState(
     val savedRoutes: List<SavedRoute> = emptyList(),
 
     // User
-    val loggedInEmail: String = ""
+    val loggedInEmail: String = "",
+
+    // Quick actions
+    val activeQuickAction: QuickActionType? = null,
+
+    // Fare calculator
+    val fareFromStation: String = "",
+    val fareToStation: String = "",
+    val fareResult: Int? = null,
+    val fareStationCount: Int? = null
 )
 
 // ─── ViewModel ────────────────────────────────────────────────────────────────
@@ -146,12 +157,68 @@ class HomeViewModel(
                     showRouteResult = false,
                     routeError = ""
                 )
+                StationPickerTarget.FARE_FROM -> it.copy(
+                    fareFromStation = name,
+                    showStationPicker = false,
+                    pickerQuery = ""
+                )
+                StationPickerTarget.FARE_TO -> it.copy(
+                    fareToStation = name,
+                    showStationPicker = false,
+                    pickerQuery = ""
+                )
             }
+        }
+        // Auto-calculate fare when both fare stations are selected
+        val state = _uiState.value
+        if (state.fareFromStation.isNotBlank() && state.fareToStation.isNotBlank()) {
+            calculateFareResult()
         }
     }
 
     fun dismissStationPicker() {
         _uiState.update { it.copy(showStationPicker = false, pickerQuery = "") }
+    }
+
+    // ── Quick Actions ────────────────────────────────────────────────────
+
+    fun onQuickActionOpen(type: QuickActionType) {
+        _uiState.update { it.copy(activeQuickAction = type) }
+    }
+
+    fun dismissQuickAction() {
+        _uiState.update {
+            it.copy(
+                activeQuickAction = null,
+                fareFromStation = "",
+                fareToStation = "",
+                fareResult = null,
+                fareStationCount = null
+            )
+        }
+    }
+
+    fun openFareStationPicker(target: StationPickerTarget) {
+        _uiState.update {
+            it.copy(
+                showStationPicker = true,
+                pickerTarget = target,
+                pickerQuery = ""
+            )
+        }
+    }
+
+    private fun calculateFareResult() {
+        val state = _uiState.value
+        val route = homeRepository.findRoute(state.fareFromStation, state.fareToStation)
+        if (route != null) {
+            _uiState.update {
+                it.copy(
+                    fareResult = route.fare,
+                    fareStationCount = route.stationCount
+                )
+            }
+        }
     }
 
     // ── From station input (kept for compatibility) ─────────────────────────

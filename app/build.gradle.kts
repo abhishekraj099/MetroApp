@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.compose.ui.text.google.fonts)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.play.services.location)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

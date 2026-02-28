@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
@@ -16,6 +15,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.metro.data.local.SessionDataStore
 import com.example.metro.presentation.home.HomeScreen
 import com.example.metro.presentation.login.LoginScreen
+import com.example.metro.presentation.settings.SettingsScreen
+import com.example.metro.presentation.splash.SplashScreen
 import com.example.metro.ui.theme.MetroTheme
 import kotlinx.coroutines.flow.map
 
@@ -29,30 +30,63 @@ class MainActivity : ComponentActivity() {
 
         val sessionDataStore = SessionDataStore(this)
 
-        // Map the nullable flow to a sentinel: start with LOADING,
-        // then emit the actual value (null = no session, non-blank = logged in)
-        val sessionFlow = sessionDataStore.loggedInEmail
+        // Map the flow OUTSIDE of composition
+        val emailFlow = sessionDataStore.loggedInEmail.map { it ?: "" }
 
         setContent {
             MetroTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    // initial = LOADING means we haven't read from disk yet
-                    val loggedInEmail by sessionFlow.map { it ?: "" }
+                    val loggedInEmail by emailFlow
                         .collectAsState(initial = LOADING)
 
-                    // While the DataStore is still reading, render nothing (avoids login flash)
-                    if (loggedInEmail == LOADING) {
-                        Box(Modifier.fillMaxSize()) // blank splash
-                        return@Surface
-                    }
-
-                    val startDestination = if (loggedInEmail.isNotBlank()) "home" else "login"
-
                     val navController = rememberNavController()
-                    NavHost(navController = navController, startDestination = startDestination) {
-                        composable("login") { LoginScreen(navController) }
-                        composable("home")  { HomeScreen() }
-                        // composable("signup") { SignUpScreen(navController) }
+
+                    NavHost(
+                        navController = navController,
+                        startDestination = "splash"
+                    ) {
+                        // Splash screen — always shown first
+                        composable("splash") {
+                            SplashScreen(
+                                onSplashFinished = {
+                                    val destination =
+                                        if (loggedInEmail != LOADING && loggedInEmail.isNotBlank()) {
+                                            "home"
+                                        } else {
+                                            "login"
+                                        }
+                                    navController.navigate(destination) {
+                                        popUpTo("splash") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
+                        // Login screen
+                        composable("login") {
+                            LoginScreen(navController)
+                        }
+
+                        // Home screen
+                        composable("home") {
+                            HomeScreen(
+                                onNavigateToSettings = {
+                                    navController.navigate("settings")
+                                }
+                            )
+                        }
+
+                        // Settings screen
+                        composable("settings") {
+                            SettingsScreen(
+                                onBack = { navController.popBackStack() },
+                                onLoggedOut = {
+                                    navController.navigate("login") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

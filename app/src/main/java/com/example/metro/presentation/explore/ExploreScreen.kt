@@ -109,7 +109,7 @@ private fun ExploreHeader() {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(R.drawable.borders),
+            painter = painterResource(R.drawable.newborder),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -128,7 +128,7 @@ private fun ExploreHeader() {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = painterResource(R.drawable.mento),
+                    painter = painterResource(R.drawable.newlogo),
                     contentDescription = "Logo",
                     modifier = Modifier.size(48.dp),
                     contentScale = ContentScale.Fit

@@ -55,7 +55,8 @@ data class QuickAction(
     val label: String,
     val icon: ImageVector,
     val bgColor: Color,
-    val iconTint: Color
+    val iconTint: Color,
+    val type: QuickActionType? = null
 )
 
 data class NavItem(
@@ -67,7 +68,7 @@ data class NavItem(
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onNavigateToSettings: () -> Unit = {}) {
     val context = LocalContext.current
     val viewModel: HomeViewModel = viewModel(
         factory = HomeViewModel.Factory(context)
@@ -75,10 +76,10 @@ fun HomeScreen() {
     val uiState by viewModel.uiState.collectAsState()
 
     val quickActions = listOf(
-        QuickAction("Fare",     Icons.Outlined.ConfirmationNumber, Color(0xFFFFF3E0), Color(0xFFE65142)),
-        QuickAction("Timings",  Icons.Outlined.Schedule,           Color(0xFFE8EAF6), IndigoBlue),
-        QuickAction("Nearest",  Icons.Outlined.NearMe,             Color(0xFFE8F5E9), Color(0xFF2E7D32)),
-        QuickAction("Access",   Icons.AutoMirrored.Outlined.Accessible,         Color(0xFFEDE7F6), Color(0xFF6A1B9A))
+        QuickAction("Fare",     Icons.Outlined.ConfirmationNumber, Color(0xFFFFF3E0), Color(0xFFE65142), QuickActionType.FARE),
+        QuickAction("Timings",  Icons.Outlined.Schedule,           Color(0xFFE8EAF6), IndigoBlue, QuickActionType.TIMINGS),
+        QuickAction("Nearest",  Icons.Outlined.NearMe,             Color(0xFFE8F5E9), Color(0xFF2E7D32), QuickActionType.NEAREST),
+        QuickAction("Access",   Icons.AutoMirrored.Outlined.Accessible,         Color(0xFFEDE7F6), Color(0xFF6A1B9A), QuickActionType.ACCESSIBILITY)
     )
 
     val navItems = listOf(
@@ -116,7 +117,12 @@ fun HomeScreen() {
                     onRemoveSavedRoute = viewModel::onRemoveSavedRoute,
                     onPickerQueryChange = viewModel::onPickerQueryChange,
                     onStationSelected = viewModel::onStationSelected,
-                    onDismissPicker = viewModel::dismissStationPicker
+                    onDismissPicker = viewModel::dismissStationPicker,
+                    onQuickActionClick = viewModel::onQuickActionOpen,
+                    onDismissQuickAction = viewModel::dismissQuickAction,
+                    onFareFromClick = { viewModel.openFareStationPicker(StationPickerTarget.FARE_FROM) },
+                    onFareToClick = { viewModel.openFareStationPicker(StationPickerTarget.FARE_TO) },
+                    onSettingsClick = onNavigateToSettings
                 )
                 1 -> MapScreen()
                 2 -> StationsScreen()
@@ -135,7 +141,12 @@ fun HomeScreen() {
                     onRemoveSavedRoute = viewModel::onRemoveSavedRoute,
                     onPickerQueryChange = viewModel::onPickerQueryChange,
                     onStationSelected = viewModel::onStationSelected,
-                    onDismissPicker = viewModel::dismissStationPicker
+                    onDismissPicker = viewModel::dismissStationPicker,
+                    onQuickActionClick = viewModel::onQuickActionOpen,
+                    onDismissQuickAction = viewModel::dismissQuickAction,
+                    onFareFromClick = { viewModel.openFareStationPicker(StationPickerTarget.FARE_FROM) },
+                    onFareToClick = { viewModel.openFareStationPicker(StationPickerTarget.FARE_TO) },
+                    onSettingsClick = onNavigateToSettings
                 )
             }
         }
@@ -159,7 +170,12 @@ fun HomeContent(
     onRemoveSavedRoute: (String) -> Unit,
     onPickerQueryChange: (String) -> Unit,
     onStationSelected: (String) -> Unit,
-    onDismissPicker: () -> Unit
+    onDismissPicker: () -> Unit,
+    onQuickActionClick: (QuickActionType) -> Unit,
+    onDismissQuickAction: () -> Unit,
+    onFareFromClick: () -> Unit,
+    onFareToClick: () -> Unit,
+    onSettingsClick: () -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -167,7 +183,7 @@ fun HomeContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            MetroHeader()
+            MetroHeader(onSettingsClick = onSettingsClick)
 
             Column(
                 modifier = Modifier
@@ -200,7 +216,7 @@ fun HomeContent(
                     }
                 }
 
-                QuickActionsRow(quickActions)
+                QuickActionsRow(quickActions, onQuickActionClick)
                 ServiceStatusCard(
                     serviceLevel = uiState.serviceLevel,
                     message = uiState.serviceMessage
@@ -214,10 +230,30 @@ fun HomeContent(
             }
         }
 
-        // Station picker bottom sheet — rendered outside the scrollable Column
+        // Quick Action Overlays (rendered BEFORE station picker so picker appears on top)
+        when (uiState.activeQuickAction) {
+            QuickActionType.FARE -> FareCalculatorOverlay(
+                fareFrom = uiState.fareFromStation,
+                fareTo = uiState.fareToStation,
+                fareResult = uiState.fareResult,
+                fareStationCount = uiState.fareStationCount,
+                onFromClick = onFareFromClick,
+                onToClick = onFareToClick,
+                onDismiss = onDismissQuickAction
+            )
+            QuickActionType.TIMINGS -> TimingsOverlay(onDismiss = onDismissQuickAction)
+            QuickActionType.NEAREST -> NearestStationOverlay(onDismiss = onDismissQuickAction)
+            QuickActionType.ACCESSIBILITY -> AccessibilityOverlay(onDismiss = onDismissQuickAction)
+            null -> { /* no overlay */ }
+        }
+
+        // Station picker overlay (rendered LAST so it appears on top of everything)
         if (uiState.showStationPicker) {
             StationPickerBottomSheet(
-                title = if (uiState.pickerTarget == StationPickerTarget.FROM) "Select Origin" else "Select Destination",
+                title = when (uiState.pickerTarget) {
+                    StationPickerTarget.FROM, StationPickerTarget.FARE_FROM -> "Select Origin"
+                    StationPickerTarget.TO, StationPickerTarget.FARE_TO -> "Select Destination"
+                },
                 query = uiState.pickerQuery,
                 allStations = uiState.allStations,
                 corridor1Stations = uiState.corridor1Stations,
@@ -233,7 +269,7 @@ fun HomeContent(
 // ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-fun MetroHeader() {
+fun MetroHeader(onSettingsClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -243,7 +279,7 @@ fun MetroHeader() {
     ) {
         // Border image fills entire header as background
         Image(
-            painter = painterResource(R.drawable.borders),
+            painter = painterResource(R.drawable.newborder),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
@@ -266,7 +302,7 @@ fun MetroHeader() {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = painterResource(R.drawable.mento),
+                    painter = painterResource(R.drawable.newlogo),
                     contentDescription = "Patna Metro Logo",
                     modifier = Modifier
                         .size(48.dp),
@@ -299,7 +335,7 @@ fun MetroHeader() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(ParchmentDark.copy(alpha = 0.8f))
-                    .clickable { },
+                    .clickable { onSettingsClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -1049,21 +1085,21 @@ fun RouteInfoChip(icon: ImageVector, label: String) {
 // ── Quick Actions Row ─────────────────────────────────────────────────────────
 
 @Composable
-fun QuickActionsRow(actions: List<QuickAction>) {
+fun QuickActionsRow(actions: List<QuickAction>, onActionClick: (QuickActionType) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         actions.forEach { action ->
-            QuickActionItem(action, modifier = Modifier.weight(1f))
+            QuickActionItem(action, onActionClick, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-fun QuickActionItem(action: QuickAction, modifier: Modifier = Modifier) {
+fun QuickActionItem(action: QuickAction, onActionClick: (QuickActionType) -> Unit, modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.clickable { },
+        modifier = modifier.clickable { action.type?.let { onActionClick(it) } },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
