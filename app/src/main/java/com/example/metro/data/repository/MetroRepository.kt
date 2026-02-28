@@ -1,6 +1,9 @@
 package com.example.metro.data.repository
 
 import com.example.metro.data.model.MetroLine
+import com.example.metro.data.model.RouteResult
+import com.example.metro.data.model.ServiceLevel
+import com.example.metro.data.model.ServiceStatus
 import com.example.metro.data.model.Station
 import com.example.metro.ui.theme.IndigoBlue
 import com.example.metro.ui.theme.VermilionRed
@@ -95,5 +98,136 @@ class MetroRepository {
 
     fun getStationByName(name: String): Station? =
         getAllStations().find { it.name.equals(name, ignoreCase = true) }
+
+    /**
+     * Returns all station names for dropdown/autocomplete.
+     */
+    fun getStationNames(): List<String> = getAllStations().map { it.name }
+
+    /**
+     * Finds route between two stations.
+     * Handles same-line and cross-line (via interchange at Patna Junction).
+     */
+    fun findRoute(fromName: String, toName: String): RouteResult? {
+        val from = getStationByName(fromName) ?: return null
+        val to = getStationByName(toName) ?: return null
+        if (from.name == to.name) return null
+
+        val corridor1 = getCorridor1().stations
+        val corridor2 = getCorridor2().stations
+
+        val fromOnRed = corridor1.find { it.name == from.name }
+        val toOnRed = corridor1.find { it.name == to.name }
+        val fromOnBlue = corridor2.find { it.name == from.name }
+        val toOnBlue = corridor2.find { it.name == to.name }
+
+        // Case 1: Both on Red line
+        if (fromOnRed != null && toOnRed != null) {
+            val path = extractPath(corridor1, fromOnRed, toOnRed)
+            return buildResult(from, to, path, listOf("RED"))
+        }
+
+        // Case 2: Both on Blue line
+        if (fromOnBlue != null && toOnBlue != null) {
+            val path = extractPath(corridor2, fromOnBlue, toOnBlue)
+            return buildResult(from, to, path, listOf("BLUE"))
+        }
+
+        // Case 3: Cross-line — interchange at Patna Junction
+        val junction = "Patna Junction"
+        val junctionOnRed = corridor1.find { it.name == junction }!!
+        val junctionOnBlue = corridor2.find { it.name == junction }!!
+
+        val pathPart1: List<Station>
+        val pathPart2: List<Station>
+        val lines: List<String>
+
+        if (fromOnRed != null && toOnBlue != null) {
+            pathPart1 = extractPath(corridor1, fromOnRed, junctionOnRed)
+            pathPart2 = extractPath(corridor2, junctionOnBlue, toOnBlue).drop(1) // skip duplicate junction
+            lines = listOf("RED", "BLUE")
+        } else if (fromOnBlue != null && toOnRed != null) {
+            pathPart1 = extractPath(corridor2, fromOnBlue, junctionOnBlue)
+            pathPart2 = extractPath(corridor1, junctionOnRed, toOnRed).drop(1)
+            lines = listOf("BLUE", "RED")
+        } else {
+            return null
+        }
+
+        val fullPath = pathPart1 + pathPart2
+        return buildResult(from, to, fullPath, lines, interchangeAt = junction)
+    }
+
+    private fun extractPath(corridor: List<Station>, from: Station, to: Station): List<Station> {
+        val fromIdx = corridor.indexOfFirst { it.name == from.name }
+        val toIdx = corridor.indexOfFirst { it.name == to.name }
+        return if (fromIdx <= toIdx) {
+            corridor.subList(fromIdx, toIdx + 1)
+        } else {
+            corridor.subList(toIdx, fromIdx + 1).reversed()
+        }
+    }
+
+    private fun buildResult(
+        from: Station,
+        to: Station,
+        path: List<Station>,
+        lines: List<String>,
+        interchangeAt: String? = null
+    ): RouteResult {
+        val stationCount = path.size
+        val interchangeTime = if (interchangeAt != null) 5 else 0
+        val estimatedTime = (stationCount - 1) * 2 + interchangeTime  // 2 min per station gap
+        val fare = calculateFare(stationCount)
+        return RouteResult(from, to, path, lines, interchangeAt, stationCount, estimatedTime, fare)
+    }
+
+    /**
+     * Fare calculation based on Patna Metro fare structure (approximate).
+     * Base fare ₹10, increases every few stations.
+     */
+    fun calculateFare(stationCount: Int): Int {
+        return when {
+            stationCount <= 2  -> 10
+            stationCount <= 5  -> 15
+            stationCount <= 8  -> 20
+            stationCount <= 12 -> 25
+            stationCount <= 16 -> 30
+            else               -> 35
+        }
+    }
+
+    /**
+     * Returns current service status for all lines.
+     */
+    fun getServiceStatus(): List<ServiceStatus> {
+        // Since this is an unofficial app, we show default "Normal" status.
+        // In production, this would fetch from an API.
+        return listOf(
+            ServiceStatus(
+                lineName = "Red Line (Corridor 1)",
+                status = ServiceLevel.NORMAL,
+                message = "All services running on time."
+            ),
+            ServiceStatus(
+                lineName = "Blue Line (Corridor 2)",
+                status = ServiceLevel.NORMAL,
+                message = "All services running on time."
+            )
+        )
+    }
+
+    /**
+     * Returns overall service status message.
+     */
+    fun getOverallServiceStatus(): Pair<ServiceLevel, String> {
+        val statuses = getServiceStatus()
+        val hasDelay = statuses.any { it.status != ServiceLevel.NORMAL }
+        return if (hasDelay) {
+            Pair(ServiceLevel.MINOR_DELAY, "Some delays reported on the network.")
+        } else {
+            Pair(ServiceLevel.NORMAL, "All lines running smoothly today.")
+        }
+    }
 }
 

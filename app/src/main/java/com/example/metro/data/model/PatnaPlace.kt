@@ -9,12 +9,12 @@ data class PatnaPlace(
     val nameHindi: String,
     val description: String,
     val nearestStation: String,
-    val distance: String,           // e.g. "500m from Gandhi Maidan station"
+    val distance: String,
     val timings: String,
     val entryFee: String,
     val category: PlaceCategory,
     val highlights: List<String>,
-    val emoji: String               // emoji icon as placeholder until real images are added
+    val emoji: String
 )
 
 enum class PlaceCategory(val label: String) {

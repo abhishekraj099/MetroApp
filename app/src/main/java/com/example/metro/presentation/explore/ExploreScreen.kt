@@ -303,7 +303,7 @@ private fun PlaceDetail(place: PatnaPlace) {
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, bottom = 20.dp)
     ) {
-        // ── Image placeholder with emoji + gradient ───────────────────────
+        // ── Place image — gradient with emoji ─────────────────────────
         val gradientColors = when (place.category) {
             PlaceCategory.HERITAGE  -> listOf(Color(0xFFFFF3E0), Color(0xFFFFE0B2))
             PlaceCategory.RELIGIOUS -> listOf(Color(0xFFF3E5F5), Color(0xFFE1BEE7))
@@ -320,23 +320,24 @@ private fun PlaceDetail(place: PatnaPlace) {
                 .background(Brush.verticalGradient(gradientColors)),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(place.emoji, fontSize = 48.sp)
-                Spacer(Modifier.height(4.dp))
-                // Category badge
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.8f)
-                ) {
-                    Text(
-                        place.category.label,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextMedium
-                        )
+            Text(place.emoji, fontSize = 52.sp)
+
+            // Category badge at bottom-left
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = Color.White.copy(alpha = 0.85f)
+            ) {
+                Text(
+                    place.category.label,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextMedium
                     )
-                }
+                )
             }
         }
 

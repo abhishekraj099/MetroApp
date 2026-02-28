@@ -1,5 +1,10 @@
 package com.example.metro.presentation.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,20 +28,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.metro.R
+import com.example.metro.data.model.RouteResult
+import com.example.metro.data.model.SavedRoute
+import com.example.metro.data.model.ServiceLevel
 import com.example.metro.presentation.alerts.AlertsScreen
 import com.example.metro.presentation.explore.ExploreScreen
 import com.example.metro.presentation.map.MapScreen
 import com.example.metro.presentation.stations.StationsScreen
 import com.example.metro.ui.theme.*
 
-// ── Data models ───────────────────────────────────────────────────────────────
+// ── Data models for UI ────────────────────────────────────────────────────────
 
 data class QuickAction(
     val label: String,
@@ -51,17 +61,16 @@ data class NavItem(
     val selectedIcon: ImageVector
 )
 
-data class SavedRoute(
-    val lineName: String,
-    val lineColor: Color,
-    val from: String,
-    val to: String
-)
-
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
 @Composable
 fun HomeScreen() {
+    val context = LocalContext.current
+    val viewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.Factory(context)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
     val quickActions = listOf(
         QuickAction("Fare",     Icons.Outlined.ConfirmationNumber, Color(0xFFFFF3E0), Color(0xFFE65142)),
         QuickAction("Timings",  Icons.Outlined.Schedule,           Color(0xFFE8EAF6), IndigoBlue),
@@ -74,17 +83,10 @@ fun HomeScreen() {
         NavItem("Map",      Icons.Filled.Map,            Icons.Outlined.Map),
         NavItem("Stations", Icons.Filled.Train,          Icons.Outlined.Train),
         NavItem("Alerts",   Icons.Filled.Notifications,  Icons.Outlined.Notifications),
-        NavItem("Explore", Icons.Filled.Explore,       Icons.Outlined.Explore)
-    )
-
-    val savedRoutes = listOf(
-        SavedRoute("Red Line",  VermilionRed, "Patna Jn",    "Frazer Road"),
-        SavedRoute("Blue Line", IndigoBlue,   "Saguna More", "Danapur")
+        NavItem("Explore",  Icons.Filled.Explore,        Icons.Outlined.Explore)
     )
 
     var selectedNav by remember { mutableIntStateOf(0) }
-    var fromStation by remember { mutableStateOf("Patna Junction") }
-    var toStation   by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = Parchment,
@@ -99,34 +101,36 @@ fun HomeScreen() {
         ) {
             when (selectedNav) {
                 0 -> HomeContent(
+                    uiState = uiState,
                     quickActions = quickActions,
-                    savedRoutes = savedRoutes,
-                    fromStation = fromStation,
-                    toStation = toStation,
-                    onFromChange = { fromStation = it },
-                    onToChange = { toStation = it },
-                    onSwap = {
-                        val temp = fromStation
-                        fromStation = toStation
-                        toStation = temp
-                    }
+                    onFromChange = viewModel::onFromStationChange,
+                    onFromSelected = viewModel::onFromStationSelected,
+                    onToChange = viewModel::onToStationChange,
+                    onToSelected = viewModel::onToStationSelected,
+                    onSwap = viewModel::onSwapStations,
+                    onFindRoute = viewModel::onFindRoute,
+                    onSaveRoute = viewModel::onSaveCurrentRoute,
+                    onDismissRoute = viewModel::dismissRouteResult,
+                    onLoadSavedRoute = viewModel::onLoadSavedRoute,
+                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute
                 )
                 1 -> MapScreen()
                 2 -> StationsScreen()
                 3 -> AlertsScreen()
                 4 -> ExploreScreen()
                 else -> HomeContent(
+                    uiState = uiState,
                     quickActions = quickActions,
-                    savedRoutes = savedRoutes,
-                    fromStation = fromStation,
-                    toStation = toStation,
-                    onFromChange = { fromStation = it },
-                    onToChange = { toStation = it },
-                    onSwap = {
-                        val temp = fromStation
-                        fromStation = toStation
-                        toStation = temp
-                    }
+                    onFromChange = viewModel::onFromStationChange,
+                    onFromSelected = viewModel::onFromStationSelected,
+                    onToChange = viewModel::onToStationChange,
+                    onToSelected = viewModel::onToStationSelected,
+                    onSwap = viewModel::onSwapStations,
+                    onFindRoute = viewModel::onFindRoute,
+                    onSaveRoute = viewModel::onSaveCurrentRoute,
+                    onDismissRoute = viewModel::dismissRouteResult,
+                    onLoadSavedRoute = viewModel::onLoadSavedRoute,
+                    onRemoveSavedRoute = viewModel::onRemoveSavedRoute
                 )
             }
         }
@@ -137,13 +141,18 @@ fun HomeScreen() {
 
 @Composable
 fun HomeContent(
+    uiState: HomeUiState,
     quickActions: List<QuickAction>,
-    savedRoutes: List<SavedRoute>,
-    fromStation: String,
-    toStation: String,
     onFromChange: (String) -> Unit,
+    onFromSelected: (String) -> Unit,
     onToChange: (String) -> Unit,
-    onSwap: () -> Unit
+    onToSelected: (String) -> Unit,
+    onSwap: () -> Unit,
+    onFindRoute: () -> Unit,
+    onSaveRoute: () -> Unit,
+    onDismissRoute: () -> Unit,
+    onLoadSavedRoute: (SavedRoute) -> Unit,
+    onRemoveSavedRoute: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -159,15 +168,46 @@ fun HomeContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             PlanYourRideCard(
-                fromStation = fromStation,
-                toStation = toStation,
+                fromStation = uiState.fromStation,
+                toStation = uiState.toStation,
+                fromSuggestions = uiState.fromSuggestions,
+                toSuggestions = uiState.toSuggestions,
+                showFromSuggestions = uiState.showFromSuggestions,
+                showToSuggestions = uiState.showToSuggestions,
                 onFromChange = onFromChange,
+                onFromSelected = onFromSelected,
                 onToChange = onToChange,
-                onSwap = onSwap
+                onToSelected = onToSelected,
+                onSwap = onSwap,
+                onFindRoute = onFindRoute,
+                routeError = uiState.routeError
             )
+
+            // Route Result Card
+            AnimatedVisibility(
+                visible = uiState.showRouteResult && uiState.routeResult != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                uiState.routeResult?.let { result ->
+                    RouteResultCard(
+                        result = result,
+                        onSave = onSaveRoute,
+                        onDismiss = onDismissRoute
+                    )
+                }
+            }
+
             QuickActionsRow(quickActions)
-            ServiceStatusCard()
-            SavedRoutesSection(savedRoutes)
+            ServiceStatusCard(
+                serviceLevel = uiState.serviceLevel,
+                message = uiState.serviceMessage
+            )
+            SavedRoutesSection(
+                routes = uiState.savedRoutes,
+                onRouteClick = onLoadSavedRoute,
+                onRouteRemove = onRemoveSavedRoute
+            )
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -262,9 +302,17 @@ fun MetroHeader() {
 fun PlanYourRideCard(
     fromStation: String,
     toStation: String,
+    fromSuggestions: List<String>,
+    toSuggestions: List<String>,
+    showFromSuggestions: Boolean,
+    showToSuggestions: Boolean,
     onFromChange: (String) -> Unit,
+    onFromSelected: (String) -> Unit,
     onToChange: (String) -> Unit,
-    onSwap: () -> Unit
+    onToSelected: (String) -> Unit,
+    onSwap: () -> Unit,
+    onFindRoute: () -> Unit,
+    routeError: String
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -353,16 +401,23 @@ fun PlanYourRideCard(
                 // Station fields + swap button
                 Box(modifier = Modifier.weight(1f)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StationField(
+                        StationFieldWithSuggestions(
                             label = "From Station",
                             value = fromStation,
-                            onValueChange = onFromChange
+                            placeholder = "Select origin",
+                            suggestions = fromSuggestions,
+                            showSuggestions = showFromSuggestions,
+                            onValueChange = onFromChange,
+                            onSuggestionSelected = onFromSelected
                         )
-                        StationField(
+                        StationFieldWithSuggestions(
                             label = "To Station",
                             value = toStation,
                             placeholder = "Select destination",
-                            onValueChange = onToChange
+                            suggestions = toSuggestions,
+                            showSuggestions = showToSuggestions,
+                            onValueChange = onToChange,
+                            onSuggestionSelected = onToSelected
                         )
                     }
 
@@ -387,16 +442,28 @@ fun PlanYourRideCard(
                 }
             }
 
+            // Error message
+            if (routeError.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    routeError,
+                    style = MaterialTheme.typography.bodySmall.copy(color = VermilionRed),
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
 
             // Find Route button
             Button(
-                onClick = { },
+                onClick = onFindRoute,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(26.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = VermilionRed)
+                colors = ButtonDefaults.buttonColors(containerColor = VermilionRed),
+                enabled = fromStation.isNotBlank() && toStation.isNotBlank()
             ) {
                 Text(
                     "Find Route",
@@ -411,36 +478,233 @@ fun PlanYourRideCard(
     }
 }
 
+// ── Station Field with Autocomplete Suggestions ─────────────────────────────
+
 @Composable
-fun StationField(
+fun StationFieldWithSuggestions(
     label: String,
     value: String,
     placeholder: String = "",
-    onValueChange: (String) -> Unit
+    suggestions: List<String>,
+    showSuggestions: Boolean,
+    onValueChange: (String) -> Unit,
+    onSuggestionSelected: (String) -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = ParchmentDark,
-        tonalElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+    Column {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = ParchmentDark
         ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    color = TextLight, fontSize = 11.sp
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = TextLight, fontSize = 11.sp
+                    )
                 )
-            )
-            Text(
-                value.ifEmpty { placeholder },
-                style = MaterialTheme.typography.titleSmall.copy(
-                    color = if (value.isEmpty()) TextLight else TextDark,
-                    fontWeight = if (value.isEmpty()) FontWeight.Normal else FontWeight.SemiBold
+                Spacer(Modifier.height(2.dp))
+                // Editable text field
+                androidx.compose.foundation.text.BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    textStyle = MaterialTheme.typography.titleSmall.copy(
+                        color = TextDark,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (value.isEmpty()) {
+                                Text(
+                                    placeholder,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        color = TextLight,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
                 )
-            )
+            }
         }
+
+        // Dropdown suggestions
+        AnimatedVisibility(
+            visible = showSuggestions,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column {
+                    suggestions.take(5).forEach { name ->
+                        Text(
+                            name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSuggestionSelected(name) }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.bodyMedium.copy(color = TextDark)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Route Result Card ─────────────────────────────────────────────────────────
+
+@Composable
+fun RouteResultCard(
+    result: RouteResult,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Route Found",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold, color = TextDark
+                    )
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextLight)
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Route summary row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                RouteInfoChip(icon = Icons.Filled.Train, label = "${result.stationCount} Stations")
+                RouteInfoChip(icon = Icons.Filled.Schedule, label = "~${result.estimatedTimeMin} min")
+                RouteInfoChip(icon = Icons.Filled.CurrencyRupee, label = "₹${result.fare}")
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Lines involved
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                result.lines.forEach { line ->
+                    val color = if (line == "RED") VermilionRed else IndigoBlue
+                    val name = if (line == "RED") "Red Line" else "Blue Line"
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = color.copy(alpha = 0.12f),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                name,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold, color = color
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Interchange info
+            if (result.interchangeAt != null) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.SwapHoriz,
+                        contentDescription = null,
+                        tint = Turmeric,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "Change at ${result.interchangeAt}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = TextMedium, fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = DividerColor)
+            Spacer(Modifier.height(12.dp))
+
+            // Route path preview
+            Text(
+                "Route:",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    color = TextMedium, fontWeight = FontWeight.SemiBold
+                )
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                result.path.joinToString(" → ") { it.name },
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = TextDark, lineHeight = 18.sp
+                )
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            // Save route button
+            OutlinedButton(
+                onClick = onSave,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = IndigoBlue)
+            ) {
+                Icon(Icons.Filled.BookmarkAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Save Route", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+fun RouteInfoChip(icon: ImageVector, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = IndigoBlue, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall.copy(
+                color = TextDark, fontWeight = FontWeight.Medium
+            )
+        )
     }
 }
 
@@ -493,7 +757,20 @@ fun QuickActionItem(action: QuickAction, modifier: Modifier = Modifier) {
 // ── Service Status Card ───────────────────────────────────────────────────────
 
 @Composable
-fun ServiceStatusCard() {
+fun ServiceStatusCard(serviceLevel: ServiceLevel, message: String) {
+    val (bgColor, iconColor, icon) = when (serviceLevel) {
+        ServiceLevel.NORMAL      -> Triple(Color(0xFFE8F5E9), Color(0xFF2E7D32), Icons.Filled.Bolt)
+        ServiceLevel.MINOR_DELAY -> Triple(Color(0xFFFFF3E0), Color(0xFFE65100), Icons.Filled.Warning)
+        ServiceLevel.MAJOR_DELAY -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), Icons.Filled.Error)
+        ServiceLevel.SUSPENDED   -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), Icons.Filled.Cancel)
+    }
+    val statusText = when (serviceLevel) {
+        ServiceLevel.NORMAL      -> "Normal Service"
+        ServiceLevel.MINOR_DELAY -> "Minor Delays"
+        ServiceLevel.MAJOR_DELAY -> "Major Delays"
+        ServiceLevel.SUSPENDED   -> "Service Suspended"
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -508,26 +785,21 @@ fun ServiceStatusCard() {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE8F5E9)),
+                    .background(bgColor),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Filled.Bolt,
-                    contentDescription = null,
-                    tint = Color(0xFF2E7D32),
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(24.dp))
             }
             Spacer(Modifier.width(14.dp))
             Column {
                 Text(
-                    "Normal Service",
+                    statusText,
                     style = MaterialTheme.typography.titleSmall.copy(
                         color = TextDark, fontWeight = FontWeight.Bold
                     )
                 )
                 Text(
-                    "All lines running smoothly today.",
+                    message,
                     style = MaterialTheme.typography.bodySmall.copy(color = TextMedium)
                 )
             }
@@ -538,82 +810,151 @@ fun ServiceStatusCard() {
 // ── Saved Routes Section ──────────────────────────────────────────────────────
 
 @Composable
-fun SavedRoutesSection(routes: List<SavedRoute>) {
+fun SavedRoutesSection(
+    routes: List<SavedRoute>,
+    onRouteClick: (SavedRoute) -> Unit,
+    onRouteRemove: (String) -> Unit
+) {
     Column {
         Text(
             "Saved Routes",
             style = MaterialTheme.typography.headlineSmall.copy(
-                color = TextDark,
-                fontWeight = FontWeight.Bold
+                color = TextDark, fontWeight = FontWeight.Bold
             )
         )
         Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            routes.forEach { route ->
-                SavedRouteCard(route)
+
+        if (routes.isEmpty()) {
+            // Empty state
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Outlined.BookmarkBorder,
+                        contentDescription = null,
+                        tint = TextLight,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "No saved routes yet",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextLight)
+                    )
+                    Text(
+                        "Find a route and save it for quick access",
+                        style = MaterialTheme.typography.bodySmall.copy(color = TextLight),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                routes.forEach { route ->
+                    SavedRouteCard(
+                        route = route,
+                        onClick = { onRouteClick(route) },
+                        onRemove = { onRouteRemove(route.id) }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun SavedRouteCard(route: SavedRoute) {
+fun SavedRouteCard(
+    route: SavedRoute,
+    onClick: () -> Unit,
+    onRemove: () -> Unit
+) {
+    val lineColor = Color(route.lineColorHex)
+
     Card(
-        modifier = Modifier.width(200.dp),
+        modifier = Modifier
+            .width(200.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Line name with colored dot
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(route.lineColor)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    route.lineName,
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        color = TextMedium
+            // Header with line name and remove button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(lineColor)
                     )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        route.lineName,
+                        style = MaterialTheme.typography.labelMedium.copy(color = TextMedium)
+                    )
+                }
+                Icon(
+                    Icons.Outlined.Close,
+                    contentDescription = "Remove",
+                    tint = TextLight,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { onRemove() }
                 )
             }
             Spacer(Modifier.height(8.dp))
             // From ⇄ To
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    route.from,
+                    route.fromStation,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        color = TextDark,
-                        fontWeight = FontWeight.SemiBold
+                        color = TextDark, fontWeight = FontWeight.SemiBold
                     ),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-                Spacer(Modifier.width(6.dp))
+                Text("  ⇄  ", style = MaterialTheme.typography.titleSmall.copy(color = TextLight))
                 Text(
-                    "⇄",
+                    route.toStation,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        color = TextLight
+                        color = TextDark, fontWeight = FontWeight.SemiBold
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            // Fare + time
+            Row {
+                Text(
+                    "₹${route.fare}",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = IndigoBlue, fontWeight = FontWeight.Bold
                     )
                 )
-                Spacer(Modifier.width(6.dp))
                 Text(
-                    route.to,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        color = TextDark,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    "  •  ~${route.estimatedTime} min",
+                    style = MaterialTheme.typography.labelSmall.copy(color = TextLight)
                 )
             }
         }

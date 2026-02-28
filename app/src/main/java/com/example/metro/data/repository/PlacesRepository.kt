@@ -5,7 +5,6 @@ import com.example.metro.data.model.PlaceCategory
 
 /**
  * Provides curated list of tourist places in Patna accessible via metro.
- * All data is factual and sourced from public tourism info.
  */
 class PlacesRepository {
 
@@ -196,4 +195,3 @@ class PlacesRepository {
         }
     }
 }
-
