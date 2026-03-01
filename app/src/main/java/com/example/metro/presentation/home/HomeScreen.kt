@@ -124,10 +124,10 @@ fun HomeScreen(onNavigateToSettings: () -> Unit = {}) {
                     onFareToClick = { viewModel.openFareStationPicker(StationPickerTarget.FARE_TO) },
                     onSettingsClick = onNavigateToSettings
                 )
-                1 -> MapScreen()
-                2 -> StationsScreen()
-                3 -> AlertsScreen()
-                4 -> ExploreScreen()
+                1 -> MapScreen(onNavigateToSettings = onNavigateToSettings)
+                2 -> StationsScreen(onNavigateToSettings = onNavigateToSettings)
+                3 -> AlertsScreen(onNavigateToSettings = onNavigateToSettings)
+                4 -> ExploreScreen(onNavigateToSettings = onNavigateToSettings)
                 else -> HomeContent(
                     uiState = uiState,
                     quickActions = quickActions,

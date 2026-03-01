@@ -47,13 +47,13 @@ import com.example.metro.ui.theme.*
 // ─── Map Screen ───────────────────────────────────────────────────────────────
 
 @Composable
-fun MapScreen(vm: MapViewModel = viewModel()) {
+fun MapScreen(vm: MapViewModel = viewModel(), onNavigateToSettings: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         // ── Header ────────────────────────────────────────────────────────
         Column {
-            MapHeader()
+            MapHeader(onNavigateToSettings = onNavigateToSettings)
 
             // ── Map Canvas Area ───────────────────────────────────────────
             Box(
@@ -143,7 +143,7 @@ fun MapScreen(vm: MapViewModel = viewModel()) {
 // ── Map Header (same style as HomeScreen) ─────────────────────────────────────
 
 @Composable
-fun MapHeader() {
+fun MapHeader(onNavigateToSettings: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,7 +202,7 @@ fun MapHeader() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(ParchmentDark.copy(alpha = 0.8f))
-                    .clickable { },
+                    .clickable { onNavigateToSettings() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

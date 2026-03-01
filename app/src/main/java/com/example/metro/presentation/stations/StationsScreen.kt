@@ -31,7 +31,7 @@ import com.example.metro.ui.theme.*
 // ─── Stations Screen ──────────────────────────────────────────────────────────
 
 @Composable
-fun StationsScreen(vm: StationsViewModel = viewModel()) {
+fun StationsScreen(vm: StationsViewModel = viewModel(), onNavigateToSettings: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
 
     Column(
@@ -40,7 +40,7 @@ fun StationsScreen(vm: StationsViewModel = viewModel()) {
             .background(Parchment)
     ) {
         // ── Header ────────────────────────────────────────────────────────
-        StationsHeader()
+        StationsHeader(onNavigateToSettings = onNavigateToSettings)
 
         // ── Content ───────────────────────────────────────────────────────
         Column(
@@ -85,7 +85,7 @@ fun StationsScreen(vm: StationsViewModel = viewModel()) {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StationsHeader() {
+private fun StationsHeader(onNavigateToSettings: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,7 +144,7 @@ private fun StationsHeader() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(ParchmentDark.copy(alpha = 0.8f))
-                    .clickable { },
+                    .clickable { onNavigateToSettings() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

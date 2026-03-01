@@ -35,7 +35,7 @@ import com.example.metro.ui.theme.*
 // ─── Alerts Screen ────────────────────────────────────────────────────────────
 
 @Composable
-fun AlertsScreen(vm: AlertsViewModel = viewModel()) {
+fun AlertsScreen(vm: AlertsViewModel = viewModel(), onNavigateToSettings: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
 
     val displayAlerts = when (state.activeTab) {
@@ -49,7 +49,7 @@ fun AlertsScreen(vm: AlertsViewModel = viewModel()) {
             .background(Parchment)
     ) {
         // ── Header ────────────────────────────────────────────────────────
-        AlertsHeader()
+        AlertsHeader(onNavigateToSettings = onNavigateToSettings)
 
         // ── Tabs ──────────────────────────────────────────────────────────
         AlertsTabs(
@@ -85,7 +85,7 @@ fun AlertsScreen(vm: AlertsViewModel = viewModel()) {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun AlertsHeader() {
+private fun AlertsHeader(onNavigateToSettings: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,7 +144,7 @@ private fun AlertsHeader() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(ParchmentDark.copy(alpha = 0.8f))
-                    .clickable { },
+                    .clickable { onNavigateToSettings() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

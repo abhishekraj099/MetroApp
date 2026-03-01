@@ -45,7 +45,7 @@ import com.example.metro.ui.theme.*
 // ─── Explore Screen ───────────────────────────────────────────────────────────
 
 @Composable
-fun ExploreScreen(vm: ExploreViewModel = viewModel()) {
+fun ExploreScreen(vm: ExploreViewModel = viewModel(), onNavigateToSettings: () -> Unit = {}) {
     val state by vm.uiState.collectAsState()
 
     Column(
@@ -54,7 +54,7 @@ fun ExploreScreen(vm: ExploreViewModel = viewModel()) {
             .background(Parchment)
     ) {
         // ── Header ────────────────────────────────────────────────────────
-        ExploreHeader()
+        ExploreHeader(onNavigateToSettings = onNavigateToSettings)
 
         // ── Title ─────────────────────────────────────────────────────────
         Text(
@@ -100,7 +100,7 @@ fun ExploreScreen(vm: ExploreViewModel = viewModel()) {
 // ── Header ────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ExploreHeader() {
+private fun ExploreHeader(onNavigateToSettings: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -159,7 +159,7 @@ private fun ExploreHeader() {
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(ParchmentDark.copy(alpha = 0.8f))
-                    .clickable { },
+                    .clickable { onNavigateToSettings() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -452,4 +452,3 @@ private fun InfoRow(
         )
     }
 }
-
