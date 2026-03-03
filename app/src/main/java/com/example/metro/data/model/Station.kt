@@ -4,7 +4,7 @@ data class Station(
     val id: String,
     val name: String,
     val nameHindi: String = "",
-    val corridor: Int,          // 1 = Corridor 1 (Blue), 2 = Corridor 2 (Red)
+    val corridor: Int,          // 1 = Corridor 1 (Red Line), 2 = Corridor 2 (Blue Line)
     val index: Int,             // order in the corridor
     val latitude: Double,
     val longitude: Double,

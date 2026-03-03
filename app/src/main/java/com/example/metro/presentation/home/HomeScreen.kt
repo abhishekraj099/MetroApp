@@ -43,6 +43,7 @@ import com.example.metro.R
 import com.example.metro.data.model.RouteResult
 import com.example.metro.data.model.SavedRoute
 import com.example.metro.data.model.ServiceLevel
+import com.example.metro.data.model.Station
 import com.example.metro.presentation.alerts.AlertsScreen
 import com.example.metro.presentation.explore.ExploreScreen
 import com.example.metro.presentation.map.MapScreen
@@ -934,7 +935,7 @@ fun StationPickerItem(
     }
 }
 
-// ── Route Result Card ─────────────────────────────────────────────────────────
+// ── Route Result Card (Delhi Metro Saarthi-style) ─────────────────────────────
 
 @Composable
 fun RouteResultCard(
@@ -942,6 +943,9 @@ fun RouteResultCard(
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    // Build journey segments: split path at interchange station
+    val segments = remember(result) { buildJourneySegments(result) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -949,14 +953,14 @@ fun RouteResultCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header
+            // ── Header row ────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Route Found",
+                    "Your Journey",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold, color = TextDark
                     )
@@ -966,39 +970,41 @@ fun RouteResultCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Route summary row
+            // ── Summary chips ─────────────────────────────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Parchment, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                RouteInfoChip(icon = Icons.Filled.Train, label = "${result.stationCount} Stations")
+                RouteInfoChip(icon = Icons.Filled.Train, label = "${result.stationCount} Stops")
                 RouteInfoChip(icon = Icons.Filled.Schedule, label = "~${result.estimatedTimeMin} min")
                 RouteInfoChip(icon = Icons.Filled.CurrencyRupee, label = "₹${result.fare}")
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Lines involved
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                result.lines.forEach { line ->
+            // ── Line badges ───────────────────────────────────────────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                result.lines.forEachIndexed { idx, line ->
                     val color = if (line == "RED") VermilionRed else IndigoBlue
                     val name = if (line == "RED") "Red Line" else "Blue Line"
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = color.copy(alpha = 0.12f),
-                        modifier = Modifier.padding(end = 8.dp)
+                        color = color.copy(alpha = 0.12f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(color)
+                                modifier = Modifier.size(8.dp).clip(CircleShape).background(color)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
@@ -1009,51 +1015,305 @@ fun RouteResultCard(
                             )
                         }
                     }
+                    // Arrow between lines
+                    if (idx < result.lines.lastIndex) {
+                        Icon(
+                            Icons.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = TextLight,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
 
-            // Interchange info
-            if (result.interchangeAt != null) {
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.SwapHoriz,
-                        contentDescription = null,
-                        tint = Turmeric,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = DividerColor)
+            Spacer(Modifier.height(14.dp))
+
+            // ── Step-by-step journey ──────────────────────────────────────
+            Text(
+                "ROUTE DETAILS",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = TextLight, fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp, fontSize = 10.sp
+                )
+            )
+            Spacer(Modifier.height(10.dp))
+
+            segments.forEachIndexed { segIdx, segment ->
+                // Segment line header
+                val segColor = if (segment.line == "RED") VermilionRed else IndigoBlue
+                val segName = if (segment.line == "RED") "Red Line — Corridor 1" else "Blue Line — Corridor 2"
+                val direction = if (segment.stations.size >= 2) {
+                    "Towards ${segment.stations.last().name}"
+                } else ""
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(segColor.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Train, null, tint = segColor, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            segName,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = segColor, fontWeight = FontWeight.Bold
+                            )
+                        )
+                        if (direction.isNotEmpty()) {
+                            Text(
+                                direction,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = TextMedium, fontSize = 10.sp
+                                )
+                            )
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
                     Text(
-                        "Change at ${result.interchangeAt}",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextMedium, fontWeight = FontWeight.Medium
+                        "${segment.stations.size} stops",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = segColor, fontWeight = FontWeight.SemiBold
                         )
                     )
                 }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Station list for this segment
+                segment.stations.forEachIndexed { stIdx, station ->
+                    val isFirst = stIdx == 0
+                    val isLast = stIdx == segment.stations.lastIndex
+                    val isBoarding = segIdx == 0 && isFirst
+                    val isAlighting = segIdx == segments.lastIndex && isLast
+                    val isInterchange = station.isInterchange && isLast && segIdx < segments.lastIndex
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 8.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        // Vertical timeline column
+                        Column(
+                            modifier = Modifier.width(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Top connecting line
+                            if (!isFirst || segIdx > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(8.dp)
+                                        .background(segColor.copy(alpha = 0.5f))
+                                )
+                            } else {
+                                Spacer(Modifier.height(8.dp))
+                            }
+
+                            // Station dot
+                            if (isBoarding || isAlighting) {
+                                // Origin / Destination: filled large dot with ring
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(segColor)
+                                        .drawBehind {
+                                            drawCircle(
+                                                color = segColor,
+                                                radius = size.minDimension / 2 + 3.dp.toPx(),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
+                                            )
+                                        }
+                                )
+                            } else if (isInterchange) {
+                                // Interchange: turmeric dot with ring
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(Turmeric)
+                                        .drawBehind {
+                                            drawCircle(
+                                                color = Turmeric,
+                                                radius = size.minDimension / 2 + 3.dp.toPx(),
+                                                style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx())
+                                            )
+                                        }
+                                )
+                            } else {
+                                // Intermediate: small dot
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(segColor.copy(alpha = 0.6f))
+                                )
+                            }
+
+                            // Bottom connecting line
+                            if (!isLast) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(8.dp)
+                                        .background(segColor.copy(alpha = 0.5f))
+                                )
+                            } else {
+                                Spacer(Modifier.height(8.dp))
+                            }
+                        }
+
+                        Spacer(Modifier.width(10.dp))
+
+                        // Station info
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Text(
+                                station.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = TextDark,
+                                    fontWeight = when {
+                                        isBoarding || isAlighting || isInterchange -> FontWeight.Bold
+                                        else -> FontWeight.Normal
+                                    },
+                                    fontSize = if (isBoarding || isAlighting) 14.sp else 13.sp
+                                )
+                            )
+                            // Special labels
+                            when {
+                                isBoarding -> {
+                                    Text(
+                                        "Board here",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = segColor, fontWeight = FontWeight.SemiBold,
+                                            fontSize = 10.sp
+                                        )
+                                    )
+                                }
+                                isAlighting -> {
+                                    Text(
+                                        "Alight here",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = segColor, fontWeight = FontWeight.SemiBold,
+                                            fontSize = 10.sp
+                                        )
+                                    )
+                                }
+                                isInterchange -> {
+                                    val nextLine = segments.getOrNull(segIdx + 1)?.line
+                                    val nextColor = if (nextLine == "RED") VermilionRed else IndigoBlue
+                                    val nextName = if (nextLine == "RED") "Red Line" else "Blue Line"
+                                    Text(
+                                        "Change to $nextName",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            color = Turmeric, fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp
+                                        )
+                                    )
+                                }
+                            }
+                        }
+
+                        // Right side badges
+                        if (isBoarding) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = segColor.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    "START",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = segColor, fontWeight = FontWeight.Bold,
+                                        fontSize = 9.sp
+                                    )
+                                )
+                            }
+                        } else if (isAlighting) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = segColor.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    "END",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = segColor, fontWeight = FontWeight.Bold,
+                                        fontSize = 9.sp
+                                    )
+                                )
+                            }
+                        } else if (isInterchange) {
+                            Icon(
+                                Icons.Filled.SwapHoriz,
+                                contentDescription = "Interchange",
+                                tint = Turmeric,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Interchange card between segments
+                if (segIdx < segments.lastIndex) {
+                    val nextSeg = segments[segIdx + 1]
+                    val nextColor = if (nextSeg.line == "RED") VermilionRed else IndigoBlue
+                    val nextName = if (nextSeg.line == "RED") "Red Line" else "Blue Line"
+
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Turmeric.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.SwapHoriz,
+                            contentDescription = null,
+                            tint = Turmeric,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Change at ${result.interchangeAt ?: "interchange"}",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    color = TextDark, fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Text(
+                                "Switch to $nextName • ~5 min walk",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = TextMedium, fontSize = 10.sp
+                                )
+                            )
+                        }
+                        // Next line badge
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(nextColor)
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
             }
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = DividerColor)
-            Spacer(Modifier.height(12.dp))
-
-            // Route path preview
-            Text(
-                "Route:",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    color = TextMedium, fontWeight = FontWeight.SemiBold
-                )
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                result.path.joinToString(" → ") { it.name },
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextDark, lineHeight = 18.sp
-                )
-            )
 
             Spacer(Modifier.height(14.dp))
 
-            // Save route button
+            // ── Save route button ─────────────────────────────────────────
             OutlinedButton(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth(),
@@ -1066,6 +1326,44 @@ fun RouteResultCard(
             }
         }
     }
+}
+
+// ── Journey segment data ──────────────────────────────────────────────────────
+
+private data class JourneySegment(
+    val line: String,           // "RED" or "BLUE"
+    val stations: List<Station>
+)
+
+/**
+ * Splits the route path into segments per line.
+ * e.g., if route goes RED → interchange → BLUE, returns 2 segments.
+ */
+private fun buildJourneySegments(result: RouteResult): List<JourneySegment> {
+    if (result.path.isEmpty()) return emptyList()
+
+    // Single line — one segment
+    if (result.lines.size == 1) {
+        return listOf(JourneySegment(line = result.lines.first(), stations = result.path))
+    }
+
+    // Multi-line: split at interchange station
+    val interchangeName = result.interchangeAt ?: return listOf(
+        JourneySegment(line = result.lines.first(), stations = result.path)
+    )
+
+    val interchangeIdx = result.path.indexOfFirst { it.name == interchangeName }
+    if (interchangeIdx < 0) return listOf(
+        JourneySegment(line = result.lines.first(), stations = result.path)
+    )
+
+    val seg1Stations = result.path.subList(0, interchangeIdx + 1)
+    val seg2Stations = result.path.subList(interchangeIdx, result.path.size)
+
+    return listOf(
+        JourneySegment(line = result.lines[0], stations = seg1Stations),
+        JourneySegment(line = result.lines.getOrElse(1) { result.lines[0] }, stations = seg2Stations)
+    )
 }
 
 @Composable
@@ -1139,7 +1437,7 @@ fun ServiceStatusCard(serviceLevel: ServiceLevel, message: String) {
         ServiceLevel.SUSPENDED   -> Triple(Color(0xFFFFEBEE), Color(0xFFC62828), Icons.Filled.Cancel)
     }
     val statusText = when (serviceLevel) {
-        ServiceLevel.NORMAL      -> "Normal Service"
+        ServiceLevel.NORMAL      -> "Unofficial Guide"
         ServiceLevel.MINOR_DELAY -> "Minor Delays"
         ServiceLevel.MAJOR_DELAY -> "Major Delays"
         ServiceLevel.SUSPENDED   -> "Service Suspended"

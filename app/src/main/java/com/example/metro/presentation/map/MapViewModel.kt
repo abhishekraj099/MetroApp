@@ -81,6 +81,20 @@ class MapViewModel(
         }
     }
 
+    /** Called by transformable — multiplies zoom by pinch scale factor */
+    fun onZoomChange(scaleFactor: Float) {
+        _uiState.update {
+            it.copy(zoomLevel = (it.zoomLevel * scaleFactor).coerceIn(0.4f, 4f))
+        }
+    }
+
+    /** Called by transformable — adds pan delta */
+    fun onPanChange(dx: Float, dy: Float) {
+        _uiState.update {
+            it.copy(offsetX = it.offsetX + dx, offsetY = it.offsetY + dy)
+        }
+    }
+
     fun toggleCorridor1() {
         _uiState.update { it.copy(showCorridor1 = !it.showCorridor1) }
     }
@@ -89,4 +103,3 @@ class MapViewModel(
         _uiState.update { it.copy(showCorridor2 = !it.showCorridor2) }
     }
 }
-

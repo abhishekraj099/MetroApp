@@ -15,7 +15,7 @@ data class MetroAlert(
 
 enum class AlertType {
     INFO,           // Blue ℹ  — general information
-    ANNOUNCEMENT,   // Turmeric 📢 — official announcements
+    ANNOUNCEMENT,   // Turmeric 📢 — general announcements
     RULE,           // Indigo 📋 — metro rules & guidelines
     HELPLINE,       // Green 📞 — emergency / helpline
     TIP             // Vermilion 💡 — travel tips

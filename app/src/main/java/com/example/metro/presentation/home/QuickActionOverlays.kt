@@ -225,9 +225,9 @@ fun FareCalculatorOverlay(
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "Fares are approximate and based on PMRC proposed fare structure. " +
-                                        "Actual fares may vary once metro operations begin. " +
-                                        "Smart card users may get up to 10% discount.",
+                                "Fares are approximate and based on PMRC DPR (Detailed Project Report). " +
+                                        "Actual fares will be announced by PMRC before operations begin. " +
+                                        "This is an unofficial guide.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = IndigoBlue, lineHeight = 16.sp
                                 )
@@ -294,7 +294,7 @@ fun TimingsOverlay(onDismiss: () -> Unit) {
                                 Icon(Icons.Filled.Schedule, null, tint = VermilionRed, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Operating Hours",
+                                    "Expected Operating Hours",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold, color = TextDark
                                     )
@@ -302,8 +302,8 @@ fun TimingsOverlay(onDismiss: () -> Unit) {
                             }
                             Spacer(Modifier.height(16.dp))
 
-                            TimingInfoRow("First Train", "6:00 AM", Icons.Outlined.WbSunny)
-                            TimingInfoRow("Last Train", "10:00 PM", Icons.Outlined.NightsStay)
+                            TimingInfoRow("First Train (Expected)", "6:00 AM", Icons.Outlined.WbSunny)
+                            TimingInfoRow("Last Train (Expected)", "10:00 PM", Icons.Outlined.NightsStay)
                             TimingInfoRow("Service Duration", "6:00 AM – 10:00 PM", Icons.Outlined.AccessTime)
                         }
                     }
@@ -322,7 +322,7 @@ fun TimingsOverlay(onDismiss: () -> Unit) {
                                 Icon(Icons.Filled.Speed, null, tint = IndigoBlue, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    "Train Frequency",
+                                    "Expected Train Frequency",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold, color = TextDark
                                     )
@@ -397,9 +397,9 @@ fun TimingsOverlay(onDismiss: () -> Unit) {
                             Icon(Icons.Outlined.Info, null, tint = IndigoBlue, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                "Timings are based on PMRC planned schedule. " +
-                                        "Actual timings may vary. Sunday/Holiday timings may differ. " +
-                                        "Last entry is 15 minutes before the last train.",
+                                "Timings are approximate and based on PMRC DPR. " +
+                                        "Actual timings will be confirmed once metro operations begin. " +
+                                        "This is an unofficial guide.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = IndigoBlue, lineHeight = 16.sp
                                 )

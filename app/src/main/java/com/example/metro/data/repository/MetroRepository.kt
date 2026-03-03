@@ -11,11 +11,15 @@ import com.example.metro.ui.theme.VermilionRed
 /**
  * Provides Patna Metro corridor & station data.
  *
- * Corridor 1 (Red)  — Danapur ↔ Mithapur Bus Stand  (East-West)
- * Corridor 2 (Blue) — Patna Junction ↔ New ISBT      (North-South)
+ * Corridor 1 (Red Line)  — Danapur ↔ Mithapur Bus Stand  (East–West)
+ * Corridor 2 (Blue Line) — Patna Junction ↔ New ISBT      (North–South)
  *
+ * Station names & sequence based on PMRC (Patna Metro Rail Corporation) DPR.
  * Coordinates are approximate for map plotting.
- * Hindi names sourced from PMRC official documents.
+ * Hindi names sourced from PMRC public documents.
+ *
+ * NOTE: This is an UNOFFICIAL app. Patna Metro is under construction.
+ * Data may change as per final PMRC announcements.
  */
 class MetroRepository {
 
@@ -29,7 +33,7 @@ class MetroRepository {
                 lines = listOf("RED")),
             Station("c1_04", "Rukanpura",          "रुकनपुरा",        1, 3,  25.6108, 85.0970,
                 lines = listOf("RED")),
-            Station("c1_05", "Raja Bazar",         "राजा बाज़ार",      1, 4,  25.6098, 85.1060,
+            Station("c1_05", "Raja Bazar",         "राजा बाजार",       1, 4,  25.6098, 85.1060,
                 lines = listOf("RED")),
             Station("c1_06", "Patna Junction",     "पटना जंक्शन",     1, 5,  25.6075, 85.1200,
                 isInterchange = true, facilities = listOf("Parking", "Lift", "Wheelchair"),
@@ -201,18 +205,17 @@ class MetroRepository {
      * Returns current service status for all lines.
      */
     fun getServiceStatus(): List<ServiceStatus> {
-        // Since this is an unofficial app, we show default "Normal" status.
-        // In production, this would fetch from an API.
+        // Patna Metro is under construction — show informational status.
         return listOf(
             ServiceStatus(
                 lineName = "Red Line (Corridor 1)",
                 status = ServiceLevel.NORMAL,
-                message = "All services running on time."
+                message = "Under construction. Data based on DPR."
             ),
             ServiceStatus(
                 lineName = "Blue Line (Corridor 2)",
                 status = ServiceLevel.NORMAL,
-                message = "All services running on time."
+                message = "Under construction. Data based on DPR."
             )
         )
     }
@@ -226,7 +229,7 @@ class MetroRepository {
         return if (hasDelay) {
             Pair(ServiceLevel.MINOR_DELAY, "Some delays reported on the network.")
         } else {
-            Pair(ServiceLevel.NORMAL, "All lines running smoothly today.")
+            Pair(ServiceLevel.NORMAL, "All data based on PMRC DPR. Unofficial guide.")
         }
     }
 }

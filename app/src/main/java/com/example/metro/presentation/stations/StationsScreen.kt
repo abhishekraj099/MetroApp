@@ -234,6 +234,7 @@ private fun FilterChips(activeFilter: LineFilter, onFilterChange: (LineFilter) -
 
 @Composable
 private fun StationCard(station: Station, onClick: () -> Unit) {
+    val lineColor = if ("RED" in station.lines) VermilionRed else IndigoBlue
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -319,17 +320,17 @@ private fun StationCard(station: Station, onClick: () -> Unit) {
                 }
             }
 
-            // ── ETA badge ─────────────────────────────────────────────────
+            // ── Station number badge ──────────────────────────────────
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = Color(0xFFE8F5E9),
+                color = lineColor.copy(alpha = 0.1f),
                 tonalElevation = 0.dp
             ) {
                 Text(
-                    "${station.nextTrainMin} min",
+                    "#${station.index + 1}",
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.labelMedium.copy(
-                        color = Color(0xFF2E7D32),
+                        color = lineColor,
                         fontWeight = FontWeight.SemiBold
                     )
                 )
