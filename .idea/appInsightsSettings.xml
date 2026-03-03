@@ -8,7 +8,7 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.metro" />
+                  <option name="appId" value="com.namikazecompose.patnametro" />
                   <option name="mobileSdkAppId" value="1:37543857658:android:e53a938c8823f58da22843" />
                   <option name="projectId" value="metroapp-e3ea0" />
                   <option name="projectNumber" value="37543857658" />
